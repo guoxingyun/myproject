@@ -1,0 +1,18 @@
+/home/gxy/myproject/exgpc/target/debug/deps/libbson-4ebac42ba4c9a55c.rlib: /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/lib.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/macros.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/bson.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/compat/mod.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/compat/u2f.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/decoder/mod.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/decoder/error.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/decoder/serde.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/encoder/mod.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/encoder/error.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/encoder/serde.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/oid.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/ordered.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/spec.rs
+
+/home/gxy/myproject/exgpc/target/debug/deps/bson-4ebac42ba4c9a55c.d: /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/lib.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/macros.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/bson.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/compat/mod.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/compat/u2f.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/decoder/mod.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/decoder/error.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/decoder/serde.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/encoder/mod.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/encoder/error.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/encoder/serde.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/oid.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/ordered.rs /root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/spec.rs
+
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/lib.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/macros.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/bson.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/compat/mod.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/compat/u2f.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/decoder/mod.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/decoder/error.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/decoder/serde.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/encoder/mod.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/encoder/error.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/encoder/serde.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/oid.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/ordered.rs:
+/root/.cargo/registry/src/github.com-1ecc6299db9ec823/bson-0.13.0/src/spec.rs:

@@ -1,0 +1,15 @@
+[package]
+name = "exgpc"
+version = "0.1.0"
+authors = ["guoxingyun <792130043@qq.com>"]
+edition = "2018"
+
+[dependencies]
+mongodb = "0.3.11"
+jsonrpc-http-server = "12.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
