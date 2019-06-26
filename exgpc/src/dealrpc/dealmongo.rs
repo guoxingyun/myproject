@@ -3,7 +3,7 @@ extern crate ring;
 use mongodb::{Bson, bson, doc};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
-pub fn mongoinsert(fromAccount : & str,toAccount : & str,amount : & str,token : & str){
+pub fn mongoinsert(txid : &str,fromAccount : & str,toAccount : & str,amount : & str,token : & str){
 
 	let client = Client::connect("localhost", 27017)
         .expect("Failed to initialize standalone client.");
@@ -15,6 +15,7 @@ pub fn mongoinsert(fromAccount : & str,toAccount : & str,amount : & str,token : 
         "toAccount": toAccount,
 	"amount":amount,
 	"token":token,
+	"txid":txid,
     };
 	
 

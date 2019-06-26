@@ -8,7 +8,11 @@ use serde::Deserialize;
 use ring::{
     rand,
     signature::{self, KeyPair},
+    rand::SecureRandom,
+    digest,
 };
+
+use std::time::{SystemTime, UNIX_EPOCH};
 
 
 pub mod dealmongo;
@@ -36,6 +40,16 @@ pub fn registmethod(){
                 Ok(Value::String("hellossss".into()))
         });
 
+	io.add_method("say_helloi", |_| {
+                Ok(Value::String("hellossss".into()))
+        });
+
+	io.add_method("say_hello", |_| {
+                Ok(Value::String("hellossss".into()))
+        });
+
+
+
         io.add_method("get_info", |_| {
 		let mut list_dir = Command::new("curl");
                 list_dir.arg("--url");
@@ -61,9 +75,43 @@ pub fn registmethod(){
 
 
 	io.add_method("transfer", |_params: Params| {
-	 let parsed: HelloParams = _params.parse().unwrap();
-		dealmongo::mongoinsert(&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
-                Ok(Value::String("hellossssbyebye".into()))
+	 	let parsed: HelloParams = _params.parse().unwrap();
+			
+		let start = SystemTime::now();
+	   	let since_the_epoch = start
+		.duration_since(UNIX_EPOCH)
+		.expect("Time went backwards");
+	    	let ms = since_the_epoch.as_secs() as i64 * 1000i64 + (since_the_epoch.subsec_nanos() as f64 / 1_000_000.0) as i64;
+		let timeAndInfo = b"ms.to_string() + &parsed.fromaccount + &parsed.toaccount + &parsed.amount + &parsed.token";
+
+		let rng = rand::SystemRandom::new();
+		let mut buf = vec![0; 96];
+		assert!(rng.fill(&mut buf).is_ok());
+
+		let sss = b"sss";
+		println!("rng={:?},ms={:?}",buf,sss);
+		println!("rng={:?},ms={:?}",buf,&timeAndInfo[..]);
+		buf.extend(timeAndInfo.iter().cloned());
+		println!("rng={:?}",&buf[..]);
+		let buf256 = digest::digest(&digest::SHA256,&buf);
+		let selic256 = buf256.as_ref();	
+		let mut txid="".to_string();
+		let mut  i=0;
+		while i < 32 {
+			let tmp = format!("{:X}",selic256[i]);
+                         txid += &tmp;
+
+			i +=1;
+		}
+		println!("txid={},",txid);
+		
+			
+		
+		
+		
+		
+		dealmongo::mongoinsert(&txid,&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
+                Ok(Value::String(txid))
         });
 
 	 io.add_method("create_key", |_| {
