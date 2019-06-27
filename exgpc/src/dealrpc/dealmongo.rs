@@ -3,6 +3,8 @@ extern crate ring;
 use mongodb::{Bson, bson, doc};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
+use super::TransferInfo;
+
 pub fn mongoinsert(txid : &str,fromAccount : & str,toAccount : & str,amount : & str,token : & str){
 
 	let client = Client::connect("localhost", 27017)
@@ -38,23 +40,67 @@ pub fn mongoinsert(txid : &str,fromAccount : & str,toAccount : & str,amount : & 
     }
 }
 
-pub fn account_history(fromAccount : & str){
+pub fn account_history<'a>(fromAccount : &'a str) -> Vec<TransferInfo> {
 
 	let client = Client::connect("localhost", 27017)
         .expect("Failed to initialize standalone client.");
 
     let coll = client.db("exgpc").collection("transfer");
 
-    // Find the document and receive a cursor
-    let mut cursor = coll.find(None, None)
-        .ok().expect("Failed to execute find.");
-	println!("---{:?}---",cursor);
-    for result in cursor {
-	    if let Ok(item) = result {
-		//if let Some(&Bson::String(ref title)) = item.get("toAccount") {
-		    println!("title: {:?}", &item);
-	       // }
-	    }
-    }
+	
+	let doc_from = doc! {
+        "fromAccount": fromAccount, 
+    	};
+	
+	let doc_to = doc! {
+        "toAccount": fromAccount, 
+    	};
 
+
+	
+   let mut cursor = coll.find(Some(doc_from.clone()), None)
+        .ok().expect("Failed to execute find.");
+
+
+   let mut details = "".to_string();
+      let mut data =Vec::new();
+
+    for result in cursor {
+	let mut details2 =  TransferInfo (
+		"".to_string(),
+		"".to_string(),
+		"".to_string(),
+		"".to_string(),
+		"".to_string(),
+	   );
+
+	    if let Ok(item) = result {
+			if let Some(&Bson::String(ref fromAccount)) = item.get("fromAccount") {
+			    let data = format!("fromAccount: {}", fromAccount);
+			    details2.0 = data.to_string();
+		       }
+			if let Some(&Bson::String(ref toAccount)) = item.get("toAccount") {
+			    let data = format!("toAccount: {}", toAccount);
+			    details2.1 = data.to_string();
+		       }
+			if let Some(&Bson::String(ref amount)) = item.get("amount") {
+			    let data = format!("amount: {}", amount);
+			   details2.2 = data.to_string();
+		       }
+			if let Some(&Bson::String(ref token)) = item.get("token") {
+			    let  data = format!("token: {}", token);
+			   details2.3 = data.to_string();
+		       }
+			if let Some(&Bson::String(ref txid)) = item.get("txid") {
+			    let data = format!("txid: {}", txid);
+			   details2.4 = data.to_string();
+		       }
+
+	    }
+	   data.push(details2);
+		
+    }
+	println!("details={:?}",data);
+  
+   data
 }

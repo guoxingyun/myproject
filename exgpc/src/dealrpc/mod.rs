@@ -17,12 +17,23 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub mod dealmongo;
 #[derive(Deserialize)]
+#[derive(Debug)]
 struct HelloParams {
         fromaccount: String,
 	toaccount: String,
 	amount: String,
 	token: String,
 }
+
+#[derive(Debug)]
+pub struct TransferInfo (
+        String,
+	String,
+	String,
+	String,
+	String,
+);
+
 #[derive(Deserialize)]
 struct HelloParams2 {
         fromaccount: String,
@@ -36,16 +47,17 @@ fn analyjson(){
 
 pub fn registmethod(){
 	let mut io = IoHandler::default();
+	
         io.add_method("say_hello", |_| {
                 Ok(Value::String("hellossss".into()))
         });
 
-	io.add_method("say_helloi", |_| {
-                Ok(Value::String("hellossss".into()))
+	io.add_method("account_info", |_params: Params| {
+                Ok(Value::String("account_info".into()))
         });
 
-	io.add_method("say_hello", |_| {
-                Ok(Value::String("hellossss".into()))
+	io.add_method("get_transaction", |_params: Params| {
+                Ok(Value::String("get_transaction".into()))
         });
 
 
@@ -69,8 +81,14 @@ pub fn registmethod(){
 
         io.add_method("account_history", |_params: Params| {
 	 let parsed: HelloParams2 = _params.parse().unwrap();
-		dealmongo::account_history(&parsed.fromaccount);
-                Ok(Value::String("hellossssbyebye".into()))
+		let mut data = dealmongo::account_history(&parsed.fromaccount);
+		let mut return_data = "".to_string();
+		while let Some(top) = data.pop() {
+			let line = format! ({"{}","{}","{}","{}","{}"},top.0,top.1,top.2,top.3,top.4);
+			return_data += &line;
+		}		
+
+                Ok(Value::String(return_data))
         });
 
 
