@@ -91,8 +91,10 @@ pub fn registmethod(){
 		let mut data = dealmongo::get_account_info(&parsed.account);
 		println!("-----------------------{:?}",data);
 		let mut return_data = "".to_string();
-		if let Some(top) = data.pop() {
-			return_data = format! ("{:?};",top);
+		while let Some(top) = data.pop() {
+			let line = format! ("{:?};",top);
+			return_data += &line;
+
 		}		
   	        Ok(Value::String(return_data))
 
