@@ -167,3 +167,21 @@ pub fn get_account_info(account : &str) -> Vec<AccountInfo> {
 	}
 	data
 }
+
+pub fn update_account_info(account : &str,token : &str,amount : &str)  {
+	let client = Client::connect("localhost", 27017)
+        .expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("account");
+
+    let doc = doc! {
+        "account": account,
+	"amount":amount,
+	"token":token,
+    };
+	
+
+    coll.insert_one(doc.clone(), None)
+        .ok().expect("Failed to insert document.");
+
+}

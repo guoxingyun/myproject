@@ -27,13 +27,11 @@ struct HelloParams {
 
 #[derive(Deserialize)]
 #[derive(Debug)]
-struct issue_token_info {
+struct IssueTokenInfo {
         account: String,
 	token: String,
 	amount: String,
 }
-
-
 
 #[derive(Debug)]
 #[derive(Clone)]
@@ -53,8 +51,6 @@ pub struct AccountInfo (
 	String,
 );
 
-
-
 #[derive(Deserialize)]
 struct Account {
         account: String,
@@ -64,8 +60,6 @@ struct Account {
 struct Transaction {
         txid: String,
 }
-
-
 
 fn analyjson(){
     let mut list_dir = Command::new("ls");
@@ -81,15 +75,11 @@ pub fn registmethod(){
         });
 
 	io.add_method("issue_token", |_params: Params| {
-		let parsed: Account = _params.parse().unwrap();
+		let parsed: IssueTokenInfo = _params.parse().unwrap();
 		
-		let mut data = dealmongo::get_account_info(&parsed.account);
-		println!("-----------------------{:?}",data);
-		let mut return_data = "".to_string();
-		if let Some(top) = data.pop() {
-			return_data = format! ("{:?};",top);
-		}		
-  	        Ok(Value::String(return_data))
+		let mut data = dealmongo::update_account_info(&parsed.account,&parsed.token,&parsed.amount);
+
+  	        Ok(Value::String("issue token OK".to_string()))
 
         });
 
