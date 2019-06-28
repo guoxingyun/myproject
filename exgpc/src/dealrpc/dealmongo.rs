@@ -4,6 +4,7 @@ use mongodb::{Bson, bson, doc};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 use super::TransferInfo;
+use super::Transaction;
 
 pub fn mongoinsert(txid : &str,fromAccount : & str,toAccount : & str,amount : & str,token : & str){
 
@@ -83,6 +84,8 @@ fn account_send_receive(doc: & mongodb::ordered::OrderedDocument) -> Vec<Transfe
 			   details2.4 = data.to_string();
 		       }
 	    }
+
+		    println!("==============={:?}",details2);
 	   data.push(details2);
     }
     data
@@ -102,9 +105,18 @@ pub fn account_history<'a>(account : &'a str) -> Vec<TransferInfo> {
 	
 	let mut data_from = account_send_receive(&doc_from);
 	let mut data_to = account_send_receive(&doc_to);
-
-//  	println!("details={:?}",data);
   
   	data_from.extend_from_slice(&data_to[..]);
 	data_from
+}
+
+pub fn get_transaction_info(txid : &str) -> Vec<TransferInfo> {
+	
+	let doc = doc! {
+        "txid": txid, 
+    	};
+	
+	let mut transfer = account_send_receive(&doc);
+
+	transfer  
 }

@@ -40,6 +40,13 @@ struct HelloParams2 {
         account: String,
 }
 
+#[derive(Deserialize)]
+struct Transaction {
+        txid: String,
+}
+
+
+
 fn analyjson(){
     let mut list_dir = Command::new("ls");
     list_dir.arg("-al");
@@ -58,7 +65,14 @@ pub fn registmethod(){
         });
 
 	io.add_method("get_transaction", |_params: Params| {
-                Ok(Value::String("get_transaction".into()))
+		let parsed: Transaction = _params.parse().unwrap();
+		let mut data = dealmongo::get_transaction_info(&parsed.txid);
+		println!("-----------------------{:?}",data);
+		let mut return_data = "".to_string();
+		if let Some(top) = data.pop() {
+			return_data = format! ("{:?};",top);
+		}		
+  	        Ok(Value::String(return_data))
         });
 
 
@@ -126,7 +140,6 @@ pub fn registmethod(){
 		println!("txid={},",txid);
 		
 			
-		
 		
 		
 		
