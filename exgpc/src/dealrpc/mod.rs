@@ -25,6 +25,16 @@ struct HelloParams {
 	token: String,
 }
 
+#[derive(Deserialize)]
+#[derive(Debug)]
+struct issue_token_info {
+        account: String,
+	token: String,
+	amount: String,
+}
+
+
+
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct TransferInfo (
@@ -35,8 +45,18 @@ pub struct TransferInfo (
 	String,
 );
 
+#[derive(Debug)]
+#[derive(Clone)]
+pub struct AccountInfo (
+        String,
+	String,
+	String,
+);
+
+
+
 #[derive(Deserialize)]
-struct HelloParams2 {
+struct Account {
         account: String,
 }
 
@@ -60,8 +80,32 @@ pub fn registmethod(){
                 Ok(Value::String("hellossss".into()))
         });
 
+	io.add_method("issue_token", |_params: Params| {
+		let parsed: Account = _params.parse().unwrap();
+		
+		let mut data = dealmongo::get_account_info(&parsed.account);
+		println!("-----------------------{:?}",data);
+		let mut return_data = "".to_string();
+		if let Some(top) = data.pop() {
+			return_data = format! ("{:?};",top);
+		}		
+  	        Ok(Value::String(return_data))
+
+        });
+
+
+
 	io.add_method("account_info", |_params: Params| {
-                Ok(Value::String("account_info".into()))
+		let parsed: Account = _params.parse().unwrap();
+		
+		let mut data = dealmongo::get_account_info(&parsed.account);
+		println!("-----------------------{:?}",data);
+		let mut return_data = "".to_string();
+		if let Some(top) = data.pop() {
+			return_data = format! ("{:?};",top);
+		}		
+  	        Ok(Value::String(return_data))
+
         });
 
 	io.add_method("get_transaction", |_params: Params| {
@@ -95,7 +139,7 @@ pub fn registmethod(){
         });
 
         io.add_method("account_history", |_params: Params| {
-	 let parsed: HelloParams2 = _params.parse().unwrap();
+	 let parsed: Account = _params.parse().unwrap();
 		let mut data = dealmongo::account_history(&parsed.account);
 		let mut return_data = "".to_string();
 		while let Some(top) = data.pop() {
