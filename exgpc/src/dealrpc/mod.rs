@@ -26,6 +26,7 @@ struct HelloParams {
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct TransferInfo (
         String,
 	String,
@@ -36,7 +37,7 @@ pub struct TransferInfo (
 
 #[derive(Deserialize)]
 struct HelloParams2 {
-        fromaccount: String,
+        account: String,
 }
 
 fn analyjson(){
@@ -81,10 +82,11 @@ pub fn registmethod(){
 
         io.add_method("account_history", |_params: Params| {
 	 let parsed: HelloParams2 = _params.parse().unwrap();
-		let mut data = dealmongo::account_history(&parsed.fromaccount);
+		let mut data = dealmongo::account_history(&parsed.account);
 		let mut return_data = "".to_string();
 		while let Some(top) = data.pop() {
-			let line = format! ({"{}","{}","{}","{}","{}"},top.0,top.1,top.2,top.3,top.4);
+			let line = format! ("{:?};",top);
+		//	let line = format! ("{"{}","{}","{}","{}","{}"}",top.0,top.1,top.2,top.3,top.4);
 			return_data += &line;
 		}		
 
@@ -191,15 +193,9 @@ pub fn registmethod(){
         });
 
 
-	
-
-	
-
-
-
 	let server = ServerBuilder::new(io)
                 .cors(DomainsValidation::AllowOnly(vec![AccessControlAllowOrigin::Null]))
-                .start_http(&"127.0.0.1:3030".parse().unwrap())
+                .start_http(&"128.14.178.14:3030".parse().unwrap())
                 .expect("Unable to start RPC server");
 
         server.wait();

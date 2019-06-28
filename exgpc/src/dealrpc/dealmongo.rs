@@ -40,25 +40,12 @@ pub fn mongoinsert(txid : &str,fromAccount : & str,toAccount : & str,amount : & 
     }
 }
 
-pub fn account_history<'a>(fromAccount : &'a str) -> Vec<TransferInfo> {
-
+fn account_send_receive(doc: & mongodb::ordered::OrderedDocument) -> Vec<TransferInfo> {
 	let client = Client::connect("localhost", 27017)
         .expect("Failed to initialize standalone client.");
 
     let coll = client.db("exgpc").collection("transfer");
-
-	
-	let doc_from = doc! {
-        "fromAccount": fromAccount, 
-    	};
-	
-	let doc_to = doc! {
-        "toAccount": fromAccount, 
-    	};
-
-
-	
-   let mut cursor = coll.find(Some(doc_from.clone()), None)
+	 let mut cursor = coll.find(Some(doc.clone()), None)
         .ok().expect("Failed to execute find.");
 
 
@@ -95,12 +82,29 @@ pub fn account_history<'a>(fromAccount : &'a str) -> Vec<TransferInfo> {
 			    let data = format!("txid: {}", txid);
 			   details2.4 = data.to_string();
 		       }
-
 	    }
 	   data.push(details2);
-		
     }
-	println!("details={:?}",data);
+    data
+}
+pub fn account_history<'a>(account : &'a str) -> Vec<TransferInfo> {
+
+
+
+	
+	let doc_from = doc! {
+        "fromAccount": account, 
+    	};
+	
+	let doc_to = doc! {
+        "toAccount": account, 
+    	};
+	
+	let mut data_from = account_send_receive(&doc_from);
+	let mut data_to = account_send_receive(&doc_to);
+
+//  	println!("details={:?}",data);
   
-   data
+  	data_from.extend_from_slice(&data_to[..]);
+	data_from
 }
