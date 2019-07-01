@@ -12,6 +12,7 @@ use std::io::{self, Write};
 use std::process::Command;
 
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::mem;
 
 pub mod dealmongo;
 #[derive(Deserialize, Debug)]
@@ -24,9 +25,10 @@ struct HelloParams {
 
 #[derive(Deserialize, Debug)]
 struct IssueTokenInfo {
+    private_key: String,
     account: String,
     token: String,
-    amount: String,
+    amount: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +43,13 @@ struct Account {
 }
 
 #[derive(Deserialize)]
+struct Official {
+    official: String,
+}
+
+
+
+#[derive(Deserialize)]
 struct Transaction {
     txid: String,
 }
@@ -51,6 +60,67 @@ fn analyjson() {
     let hello = list_dir.status().expect("process failed to execute");
 }
 
+/**
+A、精度4位、
+B、额度上限、100000000000000.0000--一百万亿--精度还没
+C、命名规则、只能大写英文字母，长度7位以内（含7位）---还没完成
+D、token名称重复的报错--完成
+E、用户发行的还是usrccc进行发行，然后走eos转给其对应机构，这个不走mongo的transfer，新建表tokeninfo
+F、用户也要传私钥、私钥匹配---完成
+其他判断全部交给cleos，shell通过就算通过
+**/
+
+fn valid_rule_issue_token(private_key: & str,account : & str,token: & str,amount : & f64) -> bool {
+	let mut valid = true;
+	let private_key_db = &dealmongo::get_private_key(account);
+
+	println!("private_key={}====account={}==token={}==amount={}==private_key_db=={}",private_key,account,token,amount,private_key_db);
+	//这里的浮点型有bug，100000000000000.01显示小于100000000000000.0000,先不管
+	if Some(private_key) != Some(private_key_db) 
+		|| amount > &100000000000000.0000 
+		|| dealmongo::get_token_info(token) {
+		valid = false;
+	}	
+	
+	valid
+}
+
+fn valid_rule_transfer() -> bool {
+	println!("sss");
+	let valid = true;
+	valid
+}
+/**
+
+./cleos --url http://23.239.97.98:8888 push action usrccc create '["usrccc", "1000000000.0000 EACD"]' -p usrccc@active;
+./cleos --url http://23.239.97.98:8888 push action usrccc issue '[ "usrccc", "1000000000.0000 EACD", "" ]' -p usrccc@active;
+**/
+pub fn issue_by_eos(){
+
+	let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
+        list_dir.arg("--url");
+        list_dir.arg("http://27.155.88.209:8888");
+        list_dir.arg("push");
+        list_dir.arg("action");
+        list_dir.arg("usrbbb");
+        list_dir.arg("create");
+        list_dir.arg("[\"usrbbb\",\"1000000000.0000 TESTAAB\"]");
+        list_dir.arg("-p");
+        list_dir.arg("usrbbb@active");
+        let getinfo = list_dir.status().expect("process failed to execute");
+      //  let getinfo = list_dir.output().expect("process failed to execute");
+      //  let mut one = getinfo.stdout;
+    //	one.reverse();
+
+      //  let mut all: String = "8888".to_string();
+       //  while let Some(top) = one.pop() {
+ //           all += &(top as char).to_string();
+        // }
+//	println!("all={}",all);
+
+
+
+}
 pub fn registmethod() {
     let mut io = IoHandler::default();
 
@@ -58,12 +128,21 @@ pub fn registmethod() {
 
     io.add_method("issue_token", |_params: Params| {
         let parsed: IssueTokenInfo = _params.parse().unwrap();
+	
+        let mut issue_valid = valid_rule_issue_token(&parsed.private_key,&parsed.account, &parsed.token, &parsed.amount);
+	println!("issue_valid={}",issue_valid);
+	if issue_valid	== true {
 
-        let mut data =
-            dealmongo::update_account_info(&parsed.account, &parsed.token, &parsed.amount);
+	 crate::dealrpc::issue_by_eos();
+
+	 dealmongo::update_account_info(&parsed.account, &parsed.token, &parsed.amount);
+         dealmongo::update_token_info(&parsed.account, &parsed.token, &parsed.amount);
 
         Ok(Value::String("issue token OK".to_string()))
-    });
+	}else{
+         Ok(Value::String("issue token failed".to_string()))
+	}
+     });
 
     io.add_method("account_info", |_params: Params| {
         let parsed: Account = _params.parse().unwrap();
@@ -101,8 +180,6 @@ pub fn registmethod() {
         while let Some(top) = one.pop() {
             all += &(top as char).to_string();
         }
-        //               Ok(Value::String("sssssssssssssss".into()))
-        //      Ok(Value::String(getinfo.stdout.get_mut(1).to_string()))
         Ok(Value::String(all))
     });
 
@@ -121,6 +198,7 @@ pub fn registmethod() {
 
     io.add_method("transfer", |_params: Params| {
 	 	let parsed: HelloParams = _params.parse().unwrap();
+		let data = valid_rule_transfer();
 			
 		let start = SystemTime::now();
 	   	let since_the_epoch = start
@@ -154,12 +232,15 @@ pub fn registmethod() {
 		
 		
 		
-		dealmongo::mongoinsert(&txid,&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
+		dealmongo::transferinsert(&txid,&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
                 Ok(Value::String(txid))
         });
 
-    io.add_method("create_key", |_| {
-        //dealmongo::mongoinsert(&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
+    io.add_method("create_key", |_params: Params| {
+
+
+	let parsed: Official = _params.parse().unwrap();
+
         let rng = rand::SystemRandom::new();
         let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
         let peer_private_key_bytes = pkcs8_bytes.as_ref();
@@ -193,12 +274,12 @@ pub fn registmethod() {
         println!("private--sacalr={:?}", peer_private_key_bytes);
         let mut i = 0;
         let m = 0;
-        let mut public_key = "".to_string();
+        let mut publish_key = "".to_string();
         let mut private_key = "".to_string();
 
         while i < peer_public_key_bytes.len() {
             let tmp = format!("{:X}", peer_public_key_bytes[i]);
-            public_key += &tmp;
+            publish_key += &tmp;
             i += 1;
         }
         while i < peer_private_key_bytes.len() {
@@ -206,10 +287,21 @@ pub fn registmethod() {
             private_key += &tmp;
             i += 1;
         }
-
-        let keypairs = format!("public={},private={}", public_key, private_key);
+	let pubkey = publish_key.clone();
+	let ptr = publish_key.as_ptr();
+	let len = publish_key.len();
+	let capacity = publish_key.capacity();
+	mem::forget(publish_key);
+	let publish_key8 = unsafe { 
+		String::from_raw_parts(ptr as *mut _, 8, capacity)
+	 };
+	
+	let address = format!("{}@{}",publish_key8,parsed.official);
+        let keypairs = format!("address={},private={}", address, private_key);
 
         signature::verify(&signature::ED25519, peer_public_key, msg, sig).unwrap();
+	
+	dealmongo::update_key_info(&private_key,&pubkey,&address);
         Ok(Value::String(keypairs))
     });
 

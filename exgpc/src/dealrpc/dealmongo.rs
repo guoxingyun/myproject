@@ -7,7 +7,7 @@ use mongodb::db::ThreadedDatabase;
 use mongodb::{bson, doc, Bson};
 use mongodb::{Client, ThreadedClient};
 
-pub fn mongoinsert(txid: &str, fromAccount: &str, toAccount: &str, amount: &str, token: &str) {
+pub fn transferinsert(txid: &str, fromAccount: &str, toAccount: &str, amount: &str, token: &str) {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
@@ -123,7 +123,7 @@ pub fn get_account_info(account: &str) -> Vec<AccountInfo> {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
-    let coll = client.db("exgpc").collection("account");
+    let coll = client.db("exgpc").collection("account_info");
 
     let doc = doc! {
         "account": account,
@@ -160,15 +160,16 @@ pub fn get_account_info(account: &str) -> Vec<AccountInfo> {
     data
 }
 
-pub fn update_account_info(account: &str, token: &str, amount: &str) {
+pub fn update_account_info(account: &str, token: &str, amount: & f64) {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
-    let coll = client.db("exgpc").collection("account");
+    let coll = client.db("exgpc").collection("account_info");
+    let amount_clone = amount.clone();
 
     let doc = doc! {
         "account": account,
-    "amount":amount,
+    "amount": amount_clone,
     "token":token,
     };
 
@@ -176,3 +177,101 @@ pub fn update_account_info(account: &str, token: &str, amount: &str) {
         .ok()
         .expect("Failed to insert document.");
 }
+
+pub fn update_key_info(private_key: &str, publish_key: &str ,address: &str) {
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("key_info");
+
+    let doc = doc! {
+        "private_key": private_key,
+        "publish_key": publish_key,
+    "address":address,
+    };
+
+    coll.insert_one(doc.clone(), None)
+        .ok()
+        .expect("Failed to insert document.");
+}
+pub fn get_private_key(address: &str) -> String {
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("key_info");
+
+    let doc = doc! {
+        "address": address,
+    };
+
+    let mut cursor = coll
+        .find(Some(doc.clone()), None)
+        .ok()
+        .expect("Failed to execute find.");
+
+    let mut details = "".to_string();
+
+    for result in cursor {
+        if let Ok(item) = result {
+            if let Some(&Bson::String(ref private_key)) = item.get("private_key") {
+                details = private_key.to_string();
+            }
+         }
+    }
+    
+    details
+}
+
+pub fn get_token_info(token_name: &str) -> bool {
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("token_info");
+
+    let doc = doc! {
+        "token_name": token_name,
+    };
+
+    let mut valid = true;
+    let mut cursor = coll
+        .find(Some(doc.clone()), None)
+        .ok()
+        .expect("Failed to execute find.");
+	
+  
+    let mut details = "".to_string();
+
+    for result in cursor {
+        if let Ok(item) = result {
+            if let Some(&Bson::String(ref private_key)) = item.get("token_name") {
+                details = private_key.to_string();
+            }
+         }
+    }
+    
+   if details == "".to_string() {
+	valid = false;
+   }
+   println!("valid={}",valid);
+    valid
+}
+
+pub fn update_token_info(account: &str, token: &str, amount: & f64) {
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("token_info");
+    let amount_clone = amount.clone();
+
+    let doc = doc! {
+        "account": account,
+    "amount": amount_clone,
+    "token_name":token,
+    };
+
+    coll.insert_one(doc.clone(), None)
+        .ok()
+        .expect("Failed to insert document.");
+}
+
+
