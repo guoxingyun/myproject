@@ -7,16 +7,18 @@ use mongodb::db::ThreadedDatabase;
 use mongodb::{bson, doc, Bson};
 use mongodb::{Client, ThreadedClient};
 
-pub fn transferinsert(txid: &str, fromAccount: &str, toAccount: &str, amount: &str, token: &str) {
+pub fn transferinsert(txid: &str, fromAccount: &str, toAccount: &str, amount:& f64, token: &str) {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
     let coll = client.db("exgpc").collection("transfer");
 
+	let amount_clone = amount.clone();
+
     let doc = doc! {
         "fromAccount": fromAccount,
         "toAccount": toAccount,
-    "amount":amount,
+    "amount":amount_clone,
     "token":token,
     "txid":txid,
     };
@@ -118,6 +120,48 @@ pub fn get_transaction_info(txid: &str) -> Vec<TransferInfo> {
 
     transfer
 }
+
+pub fn get_account_token_balance(account: &str,token:& str) -> Vec<AccountInfo> {
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("account_info");
+
+    let doc = doc! {
+        "account": account,
+    };
+    let mut cursor = coll
+        .find(Some(doc.clone()), None)
+        .ok()
+        .expect("Failed to execute find.");
+
+    let mut details = "".to_string();
+    let mut data = Vec::new();
+
+    for result in cursor {
+        let mut details2 = AccountInfo("".to_string(), "".to_string(), "".to_string());
+
+        if let Ok(item) = result {
+            if let Some(&Bson::String(ref account)) = item.get("account") {
+                let data = format!("account: {}", account);
+                details2.0 = data.to_string();
+            }
+            if let Some(&Bson::String(ref token)) = item.get("token") {
+                let data = format!("token: {}", token);
+                details2.1 = data.to_string();
+            }
+
+            if let Some(&Bson::String(ref amount)) = item.get("amount") {
+                let data = format!("amount: {}", amount);
+                details2.2 = data.to_string();
+            }
+        }
+
+        data.push(details2);
+    }
+    data
+}
+
 
 pub fn get_account_info(account: &str) -> Vec<AccountInfo> {
     let client =
