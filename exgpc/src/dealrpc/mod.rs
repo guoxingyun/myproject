@@ -13,6 +13,7 @@ use std::process::Command;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::mem;
+use std::ops::Mul;
 
 pub mod dealmongo;
 #[derive(Deserialize, Debug)]
@@ -67,18 +68,23 @@ C、命名规则、只能大写英文字母，长度7位以内（含7位）---�
 D、token名称重复的报错--完成
 E、用户发行的还是usrccc进行发行，然后走eos转给其对应机构，这个不走mongo的transfer，新建表tokeninfo
 F、用户也要传私钥、私钥匹配---完成
-其他判断全部交给cleos，shell通过就算通过
+其他判断全部交给cleos，shell通过就算通过i
+除了大小写交给eos处理其他得都在这里判断了
 **/
 
 fn valid_rule_issue_token(private_key: & str,account : & str,token: & str,amount : & f64) -> bool {
 	let mut valid = true;
 	let private_key_db = &dealmongo::get_private_key(account);
+	let amount_clone = amount.clone();
 
 	println!("private_key={}====account={}==token={}==amount={}==private_key_db=={}",private_key,account,token,amount,private_key_db);
 	//这里的浮点型有bug，100000000000000.01显示小于100000000000000.0000,先不管
 	if Some(private_key) != Some(private_key_db) 
-		|| amount > &100000000000000.0000 
-		|| dealmongo::get_token_info(token) {
+		|| amount_clone > 100000000000000.0000 
+		|| amount_clone < 0.0
+		|| amount_clone.mul(10000.0) != amount_clone.mul(10000.0).floor()
+		|| dealmongo::get_token_info(token) 
+		|| token.len() > 7{
 		valid = false;
 	}	
 	
@@ -95,7 +101,9 @@ fn valid_rule_transfer() -> bool {
 ./cleos --url http://23.239.97.98:8888 push action usrccc create '["usrccc", "1000000000.0000 EACD"]' -p usrccc@active;
 ./cleos --url http://23.239.97.98:8888 push action usrccc issue '[ "usrccc", "1000000000.0000 EACD", "" ]' -p usrccc@active;
 **/
-pub fn issue_by_eos(){
+pub fn issue_by_eos(account:& str,token:& str ,amount:& f64)  {
+
+	let official = account; //待转给对应机构
 
 	let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
         list_dir.arg("--url");
@@ -104,21 +112,46 @@ pub fn issue_by_eos(){
         list_dir.arg("action");
         list_dir.arg("usrbbb");
         list_dir.arg("create");
-        list_dir.arg("[\"usrbbb\",\"1000000000.0000 TESTAAB\"]");
+	let create_token_amount = format!("[\"usrbbb\",\"{} {}\"]",amount,token);
+        //list_dir.arg("[\"usrbbb\",\"1000000000.0000 AAH\"]");
+	
+        list_dir.arg(create_token_amount);
         list_dir.arg("-p");
         list_dir.arg("usrbbb@active");
-        let getinfo = list_dir.status().expect("process failed to execute");
-      //  let getinfo = list_dir.output().expect("process failed to execute");
-      //  let mut one = getinfo.stdout;
-    //	one.reverse();
+       let getinfo = list_dir.output().expect("process failed to execute");
+        let mut one = getinfo.stdout;
+    	one.reverse();
+        let mut create_result: String = "".to_string();
+         while let Some(top) = one.pop() {
+            create_result += &(top as char).to_string();
+         }
+	println!("all={}",create_result);
+	assert_ne!(create_result,"".to_string(),"create token error");
 
-      //  let mut all: String = "8888".to_string();
-       //  while let Some(top) = one.pop() {
- //           all += &(top as char).to_string();
-        // }
-//	println!("all={}",all);
-
-
+	let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
+        list_dir.arg("--url");
+        list_dir.arg("http://27.155.88.209:8888");
+        list_dir.arg("push");
+        list_dir.arg("action");
+        list_dir.arg("usrbbb");
+        list_dir.arg("issue");
+	let issue_token_amount = format!("[\"usrbbb\",\"{} {}\",\"\"]",amount,token);
+        //list_dir.arg("[\"usrbbb\",\"1000000000.0000 AAH\",\"\"]");
+        list_dir.arg(issue_token_amount);
+        list_dir.arg("-p");
+        list_dir.arg("usrbbb@active");
+        let getinfo = list_dir.output().expect("process failed to execute");
+	let mut one = getinfo.stdout;
+    	one.reverse();
+        let mut issue_result: String = "".to_string();
+         while let Some(top) = one.pop() {
+            issue_result += &(top as char).to_string();
+         }
+	println!("all2={}",issue_result);
+	
+	assert_ne!(issue_result,"".to_string(),"issue token error");
+	
+	
 
 }
 pub fn registmethod() {
@@ -133,7 +166,7 @@ pub fn registmethod() {
 	println!("issue_valid={}",issue_valid);
 	if issue_valid	== true {
 
-	 crate::dealrpc::issue_by_eos();
+        crate::dealrpc::issue_by_eos(&parsed.account, &parsed.token, &parsed.amount);
 
 	 dealmongo::update_account_info(&parsed.account, &parsed.token, &parsed.amount);
          dealmongo::update_token_info(&parsed.account, &parsed.token, &parsed.amount);
