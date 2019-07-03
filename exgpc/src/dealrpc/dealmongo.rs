@@ -1,7 +1,7 @@
 extern crate mongodb;
 extern crate ring;
 use super::AccountInfo;
-use super::Transaction;
+
 use super::TransferInfo;
 use mongodb::db::ThreadedDatabase;
 use mongodb::{bson, doc, Bson};
@@ -50,12 +50,12 @@ fn account_send_receive(doc: &mongodb::ordered::OrderedDocument) -> Vec<Transfer
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
     let coll = client.db("exgpc").collection("transfer");
-    let mut cursor = coll
+    let cursor = coll
         .find(Some(doc.clone()), None)
         .ok()
         .expect("Failed to execute find.");
 
-    let mut details = "".to_string();
+    let _details = "".to_string();
     let mut data = Vec::new();
 
     for result in cursor {
@@ -105,7 +105,7 @@ pub fn account_history<'a>(account: &'a str) -> Vec<TransferInfo> {
     };
 
     let mut data_from = account_send_receive(&doc_from);
-    let mut data_to = account_send_receive(&doc_to);
+    let data_to = account_send_receive(&doc_to);
 
     data_from.extend_from_slice(&data_to[..]);
     data_from
@@ -116,7 +116,7 @@ pub fn get_transaction_info(txid: &str) -> Vec<TransferInfo> {
     "txid": txid,
     };
 
-    let mut transfer = account_send_receive(&doc);
+    let transfer = account_send_receive(&doc);
 
     transfer
 }
@@ -131,7 +131,7 @@ pub fn get_account_token_balance(account: &str, token: &str) -> f64 {
         "account": account,
     "token" : token,
     };
-    let mut cursor = coll
+    let cursor = coll
         .find(Some(doc.clone()), None)
         .ok()
         .expect("Failed to execute find.");
@@ -157,12 +157,12 @@ pub fn get_account_info(account: &str) -> Vec<AccountInfo> {
     let doc = doc! {
         "account": account,
     };
-    let mut cursor = coll
+    let cursor = coll
         .find(Some(doc.clone()), None)
         .ok()
         .expect("Failed to execute find.");
 
-    let mut details = "".to_string();
+    let _details = "".to_string();
     let mut data = Vec::new();
 
     for result in cursor {
@@ -253,7 +253,7 @@ pub fn get_private_key(address: &str) -> String {
         "address": address,
     };
 
-    let mut cursor = coll
+    let cursor = coll
         .find(Some(doc.clone()), None)
         .ok()
         .expect("Failed to execute find.");
@@ -282,7 +282,7 @@ pub fn get_token_info(token_name: &str) -> bool {
     };
 
     let mut valid = true;
-    let mut cursor = coll
+    let cursor = coll
         .find(Some(doc.clone()), None)
         .ok()
         .expect("Failed to execute find.");
@@ -333,7 +333,7 @@ pub fn find_official(official: &str) -> bool {
     };
 
     let mut valid = true;
-    let mut cursor = coll
+    let cursor = coll
         .find(Some(doc.clone()), None)
         .ok()
         .expect("Failed to execute find.");

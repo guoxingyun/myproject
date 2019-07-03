@@ -7,16 +7,16 @@ use ring::{
     signature::{self, KeyPair},
 };
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::io::{self, Write};
+
+
 use std::process::Command;
 
 use std::mem;
 use std::ops::Mul;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rug::float::SmallFloat;
-use rug::Float;
+
+
 
 pub mod dealmongo;
 #[derive(Deserialize, Debug)]
@@ -60,7 +60,7 @@ struct Transaction {
 fn analyjson() {
     let mut list_dir = Command::new("ls");
     list_dir.arg("-al");
-    let hello = list_dir.status().expect("process failed to execute");
+    let _hello = list_dir.status().expect("process failed to execute");
 }
 
 /**
@@ -276,7 +276,7 @@ pub fn registmethod() {
     io.add_method("issue_token", |_params: Params| {
         let parsed: IssueTokenInfo = _params.parse().unwrap();
 
-        let mut issue_valid = valid_rule_issue_token(
+        let issue_valid = valid_rule_issue_token(
             &parsed.private_key,
             &parsed.account,
             &parsed.token,
@@ -364,7 +364,7 @@ pub fn registmethod() {
         let since_the_epoch = start
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards");
-        let ms = since_the_epoch.as_secs() as i64 * 1000i64
+        let _ms = since_the_epoch.as_secs() as i64 * 1000i64
             + (since_the_epoch.subsec_nanos() as f64 / 1_000_000.0) as i64;
         //let timeAndInfo = b"ms.to_string() + &parsed.fromaccount + &parsed.toaccount + &parsed.amount + &parsed.token"; //偷懒但是仍能保证txid的唯一性
         let timeAndInfo =
@@ -466,7 +466,7 @@ pub fn registmethod() {
 
         println!("private--sacalr={:?}", peer_private_key_bytes);
         let mut i = 0;
-        let m = 0;
+        let _m = 0;
         let mut publish_key = "".to_string();
         let mut private_key = "".to_string();
 
@@ -482,7 +482,7 @@ pub fn registmethod() {
         }
         let pubkey = publish_key.clone();
         let ptr = publish_key.as_ptr();
-        let len = publish_key.len();
+        let _len = publish_key.len();
         let capacity = publish_key.capacity();
         mem::forget(publish_key);
         let publish_key8 = unsafe { String::from_raw_parts(ptr as *mut _, 8, capacity) };
