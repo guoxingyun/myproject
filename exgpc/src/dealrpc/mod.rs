@@ -15,6 +15,9 @@ use std::mem;
 use std::ops::Mul;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use rug::Float;
+use rug::float::SmallFloat;
+
 pub mod dealmongo;
 #[derive(Deserialize, Debug)]
 struct Transfer{
@@ -122,15 +125,22 @@ fn valid_rule_transfer(private_key: &str,account_from: &str,account_to: &str, to
     );
     
     println!("amount_clone.mul(10000.0)={}----amount_clone.mul(10000.0).floor()={}",amount_clone*10000.0,amount_clone.mul(10000.0).floor());
+
     //这里的浮点型有bug，100000000000000.01显示小于100000000000000.0000,先不管
     if Some(private_key) != Some(private_key_db)
-        || amount_clone > 100000000000000.0000
         || amount_clone < 0.0
-        || amount_clone.mul(10000.0) != amount_clone.mul(10000.0).floor() //有个bug2224.0001类似的数字不符合
+	|| amount_clone.mul(10000.0) != amount_clone.mul(10000.0).floor()
         || !dealmongo::get_token_info(token)
         || token.len() > 7
+	|| account_to.len() > 20
     {
 	println!("params is not right in transfer");
+        valid = false;
+    }
+
+    if  amount_clone > dealmongo::get_account_token_balance(&account_from,&token) {
+
+	println!("余额不足");
         valid = false;
     }
 
@@ -314,11 +324,24 @@ pub fn registmethod() {
 		println!("txid={},",txid);
 		
 		dealmongo::transferinsert(&txid,&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
+
+		let new_amount_fromaccount = dealmongo::get_account_token_balance(&parsed.fromaccount,&parsed.token) - &parsed.amount;
+		let new_amount_toaccount = &parsed.amount + dealmongo::get_account_token_balance(&parsed.toaccount,&parsed.token);
+
+		println!("--{}---{}--{}--",dealmongo::get_account_token_balance(&parsed.fromaccount,&parsed.token),parsed.amount,dealmongo::get_account_token_balance(&parsed.toaccount,&parsed.token));
+
+		dealmongo::update_account_info(&parsed.fromaccount,&parsed.token,&new_amount_fromaccount);
+		dealmongo::update_account_info(&parsed.toaccount,&parsed.token,&new_amount_toaccount);
+		
                 Ok(Value::String(txid))
         });
 
     io.add_method("create_key", |_params: Params| {
         let parsed: Official = _params.parse().unwrap();
+
+	if dealmongo::find_official(&parsed.official) == false {
+                return Ok(Value::String("official not exist".to_string()))
+	}
 
         let rng = rand::SystemRandom::new();
         let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
