@@ -76,7 +76,7 @@ fn account_send_receive(doc: &mongodb::ordered::OrderedDocument) -> Vec<Transfer
                 let data = format!("toAccount: {}", toAccount);
                 details2.1 = data.to_string();
             }
-            if let Some(&Bson::String(ref amount)) = item.get("amount") {
+            if let Some(&Bson::FloatingPoint(ref amount)) = item.get("amount") {
                 let data = format!("amount: {}", amount);
                 details2.2 = data.to_string();
             }
@@ -176,11 +176,13 @@ pub fn get_account_info(account: &str) -> Vec<AccountInfo> {
                 details2.0 = data.to_string();
             }
             if let Some(&Bson::String(ref token)) = item.get("token") {
+		println!("token: {}", token);
                 let data = format!("token: {}", token);
                 details2.1 = data.to_string();
             }
 
-            if let Some(&Bson::String(ref amount)) = item.get("amount") {
+            if let Some(&Bson::FloatingPoint(ref amount)) = item.get("amount") {
+		println!("amount: {}", amount);
                 let data = format!("amount: {}", amount);
                 details2.2 = data.to_string();
             }

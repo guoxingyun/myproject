@@ -132,7 +132,7 @@ fn valid_rule_transfer(private_key: &str,account_from: &str,account_to: &str, to
 	|| amount_clone.mul(10000.0) != amount_clone.mul(10000.0).floor()
         || !dealmongo::get_token_info(token)
         || token.len() > 7
-	|| account_to.len() > 20
+	|| account_to.len() > 30
     {
 	println!("params is not right in transfer");
         valid = false;
@@ -152,10 +152,9 @@ fn valid_rule_transfer(private_key: &str,account_from: &str,account_to: &str, to
 ./cleos --url http://23.239.97.98:8888 push action usrccc create '["usrccc", "1000000000.0000 EACD"]' -p usrccc@active;
 ./cleos --url http://23.239.97.98:8888 push action usrccc issue '[ "usrccc", "1000000000.0000 EACD", "" ]' -p usrccc@active;
 **/
-pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
-   
-    
-    let mut account_bytes = account.to_string().into_bytes().to_vec(); //待转给对应机构
+pub fn get_official_from_account(account: &str) -> String {
+
+  let mut account_bytes = account.to_string().into_bytes().to_vec(); //待转给对应机构
     let mut i = 0;
     println!("account_bytes={:?}",account_bytes);
     while i < 9 {
@@ -163,7 +162,17 @@ pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
 	i +=1;
    }
     let official =  String::from_utf8(account_bytes).unwrap();
-    println!("account_bytes={}",official);
+    println!("aaaaaaofficial={}",official);
+	official
+
+}
+pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
+   
+    
+   let official = get_official_from_account(account);
+
+//    assert!(dealmongo::find_official(&official),"official not exist"); 之前已经通过密钥和账户管理，这里不需要做判断，
+
 
     let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
     list_dir.arg("--url");
@@ -211,6 +220,53 @@ pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
 
     assert_ne!(issue_result, "".to_string(), "issue token error");
 }
+
+
+// ../cleos --url http://27.155.88.209:8888  push action usrccc transfer '[ "bdaex", "'${office}'", "'${amount}' '${coin}'", "{\"from\":\"official\",\"to\":\"'${address}'\"}" ]' -p bdaex@active
+pub fn transfer_by_eos(account_from: &str,account_to: &str, amount: &f64,token: &str) {
+   
+    
+    let official_from = get_official_from_account(account_from);
+    let official_to = get_official_from_account(account_to);
+ 
+    let mut from_prefix = account_from.to_string().clone();
+     from_prefix.split_off(8);
+    let mut to_prefix = account_to.to_string().clone();
+     to_prefix.split_off(8);
+
+
+
+//还要判断token是否为vsc,vsc的具有破坏性最后测试
+
+    let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
+    list_dir.arg("--url");
+    list_dir.arg("http://27.155.88.209:8888");
+    list_dir.arg("push");
+    list_dir.arg("action");
+    list_dir.arg("usrbbb");
+    list_dir.arg("transfer");
+    //这里和老王的json格式少了个大括号，后边改
+    let transfer_token_amount = format!("[\"{}\",\"{}\",\"{} {}\",\"\"from\":\"{}\",\"to\":\"{}\"\"]", official_from,official_to,amount, token,from_prefix,to_prefix);
+    println!("transfer_token_amount={}",transfer_token_amount);
+    //list_dir.arg("[\"usrbbb\",\"1000000000.0000 AAH\",\"\"]");
+   //'[ "bdaex", "'${office}'", "'${amount}' '${coin}'", "{\"from\":\"official\",\"to\":\"'${address}'\"}" ]'
+
+    list_dir.arg(transfer_token_amount);
+    list_dir.arg("-p");
+    let sigh_official = format!("{}@active", official_from);
+   list_dir.arg(sigh_official);
+    let getinfo = list_dir.output().expect("process failed to execute");
+    let mut one = getinfo.stdout;
+    one.reverse();
+    let mut issue_result: String = "".to_string();
+    while let Some(top) = one.pop() {
+        issue_result += &(top as char).to_string();
+    }
+    println!("thransfer_return===={}", issue_result);
+
+    assert_ne!(issue_result, "".to_string(), "transfer token error");
+}
+
 pub fn registmethod() {
     let mut io = IoHandler::default();
 
@@ -322,17 +378,22 @@ pub fn registmethod() {
 			i +=1;
 		}
 		println!("txid={},",txid);
-		
-		dealmongo::transferinsert(&txid,&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
 
 		let new_amount_fromaccount = dealmongo::get_account_token_balance(&parsed.fromaccount,&parsed.token) - &parsed.amount;
 		let new_amount_toaccount = &parsed.amount + dealmongo::get_account_token_balance(&parsed.toaccount,&parsed.token);
 
 		println!("--{}---{}--{}--",dealmongo::get_account_token_balance(&parsed.fromaccount,&parsed.token),parsed.amount,dealmongo::get_account_token_balance(&parsed.toaccount,&parsed.token));
 
+		//机构不同得走eos通道，txid用自己得不用eos的
+		if get_official_from_account(&parsed.fromaccount) != get_official_from_account(&parsed.toaccount) {
+			transfer_by_eos(&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
+		}
+
 		dealmongo::update_account_info(&parsed.fromaccount,&parsed.token,&new_amount_fromaccount);
 		dealmongo::update_account_info(&parsed.toaccount,&parsed.token,&new_amount_toaccount);
-		
+
+		dealmongo::transferinsert(&txid,&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
+
                 Ok(Value::String(txid))
         });
 
