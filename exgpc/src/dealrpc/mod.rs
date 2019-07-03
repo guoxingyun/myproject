@@ -15,12 +15,12 @@ use std::mem;
 use std::ops::Mul;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rug::Float;
 use rug::float::SmallFloat;
+use rug::Float;
 
 pub mod dealmongo;
 #[derive(Deserialize, Debug)]
-struct Transfer{
+struct Transfer {
     private_key: String,
     fromaccount: String,
     toaccount: String,
@@ -91,7 +91,7 @@ fn valid_rule_issue_token(private_key: &str, account: &str, token: &str, amount:
         || dealmongo::get_token_info(token)
         || token.len() > 7
     {
-	println!("params is not right");
+        println!("params is not right");
         valid = false;
     }
 
@@ -106,7 +106,7 @@ fn valid_rule_issue_token(private_key: &str, account: &str, token: &str, amount:
         E、收款地址不存在的，创建记录的时候---因为都是走我们的接口创建，收款地址不存在的就让他正常交易
                 私钥存零，表示丢失
 
-        F、发收款的机构和名字都做有效性判断      
+        F、发收款的机构和名字都做有效性判断
 
         G、老王之前的账户的私钥都没有生成处理，让老王自己刷一批私钥和之前的账户绑定。
 
@@ -114,7 +114,13 @@ fn valid_rule_issue_token(private_key: &str, account: &str, token: &str, amount:
 
         I、如何保证用户才能调用转账接口，不能随便一个人都能调用这个接口，---传transfer的时候要传私钥
 **/
-fn valid_rule_transfer(private_key: &str,account_from: &str,account_to: &str, token: &str, amount: &f64) -> bool {
+fn valid_rule_transfer(
+    private_key: &str,
+    account_from: &str,
+    account_to: &str,
+    token: &str,
+    amount: &f64,
+) -> bool {
     let mut valid = true;
     let private_key_db = &dealmongo::get_private_key(account_from);
     let amount_clone = amount.clone();
@@ -123,29 +129,31 @@ fn valid_rule_transfer(private_key: &str,account_from: &str,account_to: &str, to
         "private_key={}====account={}==token={}==amount={}==private_key_db=={}",
         private_key, account_from, token, amount, private_key_db
     );
-    
-    println!("amount_clone.mul(10000.0)={}----amount_clone.mul(10000.0).floor()={}",amount_clone*10000.0,amount_clone.mul(10000.0).floor());
+
+    println!(
+        "amount_clone.mul(10000.0)={}----amount_clone.mul(10000.0).floor()={}",
+        amount_clone * 10000.0,
+        amount_clone.mul(10000.0).floor()
+    );
 
     //这里的浮点型有bug，100000000000000.01显示小于100000000000000.0000,先不管
     if Some(private_key) != Some(private_key_db)
         || amount_clone < 0.0
-	|| amount_clone.mul(10000.0) != amount_clone.mul(10000.0).floor()
+        || amount_clone.mul(10000.0) != amount_clone.mul(10000.0).floor()
         || !dealmongo::get_token_info(token)
         || token.len() > 7
-	|| account_to.len() > 30
+        || account_to.len() > 30
     {
-	println!("params is not right in transfer");
+        println!("params is not right in transfer");
         valid = false;
     }
 
-    if  amount_clone > dealmongo::get_account_token_balance(&account_from,&token) {
-
-	println!("余额不足");
+    if amount_clone > dealmongo::get_account_token_balance(&account_from, &token) {
+        println!("余额不足");
         valid = false;
     }
 
     valid
-
 }
 
 /**
@@ -153,26 +161,21 @@ fn valid_rule_transfer(private_key: &str,account_from: &str,account_to: &str, to
 ./cleos --url http://23.239.97.98:8888 push action usrccc issue '[ "usrccc", "1000000000.0000 EACD", "" ]' -p usrccc@active;
 **/
 pub fn get_official_from_account(account: &str) -> String {
-
-  let mut account_bytes = account.to_string().into_bytes().to_vec(); //待转给对应机构
+    let mut account_bytes = account.to_string().into_bytes().to_vec(); //待转给对应机构
     let mut i = 0;
-    println!("account_bytes={:?}",account_bytes);
+    println!("account_bytes={:?}", account_bytes);
     while i < 9 {
-	account_bytes.remove(0);
-	i +=1;
-   }
-    let official =  String::from_utf8(account_bytes).unwrap();
-    println!("aaaaaaofficial={}",official);
-	official
-
+        account_bytes.remove(0);
+        i += 1;
+    }
+    let official = String::from_utf8(account_bytes).unwrap();
+    println!("aaaaaaofficial={}", official);
+    official
 }
 pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
-   
-    
-   let official = get_official_from_account(account);
+    let official = get_official_from_account(account);
 
-//    assert!(dealmongo::find_official(&official),"official not exist"); 之前已经通过密钥和账户管理，这里不需要做判断，
-
+    //    assert!(dealmongo::find_official(&official),"official not exist"); 之前已经通过密钥和账户管理，这里不需要做判断，
 
     let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
     list_dir.arg("--url");
@@ -204,7 +207,7 @@ pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
     list_dir.arg("action");
     list_dir.arg("usrbbb");
     list_dir.arg("issue");
-    let issue_token_amount = format!("[\"{}\",\"{} {}\",\"\"]", official,amount, token);
+    let issue_token_amount = format!("[\"{}\",\"{} {}\",\"\"]", official, amount, token);
     //list_dir.arg("[\"usrbbb\",\"1000000000.0000 AAH\",\"\"]");
     list_dir.arg(issue_token_amount);
     list_dir.arg("-p");
@@ -221,22 +224,17 @@ pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
     assert_ne!(issue_result, "".to_string(), "issue token error");
 }
 
-
 // ../cleos --url http://27.155.88.209:8888  push action usrccc transfer '[ "bdaex", "'${office}'", "'${amount}' '${coin}'", "{\"from\":\"official\",\"to\":\"'${address}'\"}" ]' -p bdaex@active
-pub fn transfer_by_eos(account_from: &str,account_to: &str, amount: &f64,token: &str) {
-   
-    
+pub fn transfer_by_eos(account_from: &str, account_to: &str, amount: &f64, token: &str) {
     let official_from = get_official_from_account(account_from);
     let official_to = get_official_from_account(account_to);
- 
+
     let mut from_prefix = account_from.to_string().clone();
-     from_prefix.split_off(8);
+    from_prefix.split_off(8);
     let mut to_prefix = account_to.to_string().clone();
-     to_prefix.split_off(8);
+    to_prefix.split_off(8);
 
-
-
-//还要判断token是否为vsc,vsc的具有破坏性最后测试
+    //还要判断token是否为vsc,vsc的具有破坏性最后测试
 
     let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
     list_dir.arg("--url");
@@ -246,15 +244,18 @@ pub fn transfer_by_eos(account_from: &str,account_to: &str, amount: &f64,token: 
     list_dir.arg("usrbbb");
     list_dir.arg("transfer");
     //这里和老王的json格式少了个大括号，后边改
-    let transfer_token_amount = format!("[\"{}\",\"{}\",\"{} {}\",\"\"from\":\"{}\",\"to\":\"{}\"\"]", official_from,official_to,amount, token,from_prefix,to_prefix);
-    println!("transfer_token_amount={}",transfer_token_amount);
+    let transfer_token_amount = format!(
+        "[\"{}\",\"{}\",\"{} {}\",\"\"from\":\"{}\",\"to\":\"{}\"\"]",
+        official_from, official_to, amount, token, from_prefix, to_prefix
+    );
+    println!("transfer_token_amount={}", transfer_token_amount);
     //list_dir.arg("[\"usrbbb\",\"1000000000.0000 AAH\",\"\"]");
-   //'[ "bdaex", "'${office}'", "'${amount}' '${coin}'", "{\"from\":\"official\",\"to\":\"'${address}'\"}" ]'
+    //'[ "bdaex", "'${office}'", "'${amount}' '${coin}'", "{\"from\":\"official\",\"to\":\"'${address}'\"}" ]'
 
     list_dir.arg(transfer_token_amount);
     list_dir.arg("-p");
     let sigh_official = format!("{}@active", official_from);
-   list_dir.arg(sigh_official);
+    list_dir.arg(sigh_official);
     let getinfo = list_dir.output().expect("process failed to execute");
     let mut one = getinfo.stdout;
     one.reverse();
@@ -347,62 +348,91 @@ pub fn registmethod() {
     });
 
     io.add_method("transfer", |_params: Params| {
-	 	let parsed: Transfer = _params.parse().unwrap();
-		let valid_transfer = valid_rule_transfer(&parsed.private_key,&parsed.fromaccount,&parsed.toaccount,&parsed.token,&parsed.amount);
-		if valid_transfer == false {
-                	return Ok(Value::String("params is not right".to_string()))
-		}	
-			
-		let start = SystemTime::now();
-	   	let since_the_epoch = start
-		.duration_since(UNIX_EPOCH)
-		.expect("Time went backwards");
-	    	let ms = since_the_epoch.as_secs() as i64 * 1000i64 + (since_the_epoch.subsec_nanos() as f64 / 1_000_000.0) as i64;
-		//let timeAndInfo = b"ms.to_string() + &parsed.fromaccount + &parsed.toaccount + &parsed.amount + &parsed.token"; //偷懒但是仍能保证txid的唯一性
-		let timeAndInfo = b"ms.to_string() + &parsed.fromaccount + &parsed.toaccount + &parsed.token";
+        let parsed: Transfer = _params.parse().unwrap();
+        let valid_transfer = valid_rule_transfer(
+            &parsed.private_key,
+            &parsed.fromaccount,
+            &parsed.toaccount,
+            &parsed.token,
+            &parsed.amount,
+        );
+        if valid_transfer == false {
+            return Ok(Value::String("params is not right".to_string()));
+        }
 
-		let rng = rand::SystemRandom::new();
-		let mut buf = vec![0; 96];
-		assert!(rng.fill(&mut buf).is_ok());
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+        let ms = since_the_epoch.as_secs() as i64 * 1000i64
+            + (since_the_epoch.subsec_nanos() as f64 / 1_000_000.0) as i64;
+        //let timeAndInfo = b"ms.to_string() + &parsed.fromaccount + &parsed.toaccount + &parsed.amount + &parsed.token"; //偷懒但是仍能保证txid的唯一性
+        let timeAndInfo =
+            b"ms.to_string() + &parsed.fromaccount + &parsed.toaccount + &parsed.token";
 
-		println!("rng={:?},ms={:?}",buf,&timeAndInfo[..]);
-		buf.extend(timeAndInfo.iter().cloned());
-		println!("rng={:?}",&buf[..]);
-		let buf256 = digest::digest(&digest::SHA256,&buf);
-		let selic256 = buf256.as_ref();	
-		let mut txid="".to_string();
-		let mut  i=0;
-		while i < 32 {
-			let tmp = format!("{:X}",selic256[i]);
-                         txid += &tmp;
-			i +=1;
-		}
-		println!("txid={},",txid);
+        let rng = rand::SystemRandom::new();
+        let mut buf = vec![0; 96];
+        assert!(rng.fill(&mut buf).is_ok());
 
-		let new_amount_fromaccount = dealmongo::get_account_token_balance(&parsed.fromaccount,&parsed.token) - &parsed.amount;
-		let new_amount_toaccount = &parsed.amount + dealmongo::get_account_token_balance(&parsed.toaccount,&parsed.token);
+        println!("rng={:?},ms={:?}", buf, &timeAndInfo[..]);
+        buf.extend(timeAndInfo.iter().cloned());
+        println!("rng={:?}", &buf[..]);
+        let buf256 = digest::digest(&digest::SHA256, &buf);
+        let selic256 = buf256.as_ref();
+        let mut txid = "".to_string();
+        let mut i = 0;
+        while i < 32 {
+            let tmp = format!("{:X}", selic256[i]);
+            txid += &tmp;
+            i += 1;
+        }
+        println!("txid={},", txid);
 
-		println!("--{}---{}--{}--",dealmongo::get_account_token_balance(&parsed.fromaccount,&parsed.token),parsed.amount,dealmongo::get_account_token_balance(&parsed.toaccount,&parsed.token));
+        let new_amount_fromaccount =
+            dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token)
+                - &parsed.amount;
+        let new_amount_toaccount =
+            &parsed.amount + dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token);
 
-		//机构不同得走eos通道，txid用自己得不用eos的
-		if get_official_from_account(&parsed.fromaccount) != get_official_from_account(&parsed.toaccount) {
-			transfer_by_eos(&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
-		}
+        println!(
+            "--{}---{}--{}--",
+            dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token),
+            parsed.amount,
+            dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token)
+        );
 
-		dealmongo::update_account_info(&parsed.fromaccount,&parsed.token,&new_amount_fromaccount);
-		dealmongo::update_account_info(&parsed.toaccount,&parsed.token,&new_amount_toaccount);
+        //机构不同得走eos通道，txid用自己得不用eos的
+        if get_official_from_account(&parsed.fromaccount)
+            != get_official_from_account(&parsed.toaccount)
+        {
+            transfer_by_eos(
+                &parsed.fromaccount,
+                &parsed.toaccount,
+                &parsed.amount,
+                &parsed.token,
+            );
+        }
 
-		dealmongo::transferinsert(&txid,&parsed.fromaccount,&parsed.toaccount,&parsed.amount,&parsed.token);
+        dealmongo::update_account_info(&parsed.fromaccount, &parsed.token, &new_amount_fromaccount);
+        dealmongo::update_account_info(&parsed.toaccount, &parsed.token, &new_amount_toaccount);
 
-                Ok(Value::String(txid))
-        });
+        dealmongo::transferinsert(
+            &txid,
+            &parsed.fromaccount,
+            &parsed.toaccount,
+            &parsed.amount,
+            &parsed.token,
+        );
+
+        Ok(Value::String(txid))
+    });
 
     io.add_method("create_key", |_params: Params| {
         let parsed: Official = _params.parse().unwrap();
 
-	if dealmongo::find_official(&parsed.official) == false {
-                return Ok(Value::String("official not exist".to_string()))
-	}
+        if dealmongo::find_official(&parsed.official) == false {
+            return Ok(Value::String("official not exist".to_string()));
+        }
 
         let rng = rand::SystemRandom::new();
         let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
