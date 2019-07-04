@@ -161,11 +161,17 @@ fn valid_rule_transfer(
     let amount_clone = amount.clone();
 
     println!(
-        "private_key={}====account={}==token={}==amount={}==private_key_db=={}",
-        private_key, account_from, token, amount, private_key_db
+        "private_key={}====accountfrom={}==accountto={}===token={}==amount={}==private_key_db=={}",
+        private_key, account_from,account_to, token, amount, private_key_db
     );
 
+   //待接受的账户也要检查合法性,第九位为@
+    let mut aite:String = "".to_string();
+    if let Some(tmp) = account_to.to_string().get(8..9){
+		aite = tmp.to_string();
+	};
 
+     println!("----{}---ll",aite);
     //这里的浮点型有bug，100000000000000.01显示小于100000000000000.0000,先不管
     if Some(private_key) != Some(private_key_db)
         || amount_clone < 0.0
@@ -174,6 +180,7 @@ fn valid_rule_transfer(
 	|| account_to.to_string() == account_from.to_string()
         || token.len() > 7
         || account_to.len() > 30
+        || aite != "@".to_string()
     {
         println!("params is not right in transfer");
         valid = false;
