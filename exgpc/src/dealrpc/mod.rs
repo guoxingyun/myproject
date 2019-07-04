@@ -8,7 +8,6 @@ use ring::{
 };
 use serde::Deserialize;
 
-
 use std::process::Command;
 
 use std::mem;
@@ -17,16 +16,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 extern crate rust_decimal;
 //use std::str::FromStr;
-use rust_decimal::{Decimal, RoundingStrategy};
-use std::{
-    cmp::{Ordering, Ordering::*},
-    str::FromStr,
-};
-use num::{ToPrimitive, Zero};
+use rust_decimal::Decimal;
 
-
-
-
+use num::ToPrimitive;
 
 pub mod dealmongo;
 #[derive(Deserialize, Debug)]
@@ -73,38 +65,36 @@ fn analyjson() {
     let _hello = list_dir.status().expect("process failed to execute");
 }
 
-fn valid_amount(amount:& f64) -> bool{
-	fn from_f64(f: f64) -> Option<Decimal> {
-		num::FromPrimitive::from_f64(f)
-	}
-	let mut valid = true;
-	
-	
-	let myriad:f64 = 10000.0;
-	let mut amount_dec = Decimal::new(0, 10);
-	let mut myriad_dec = Decimal::new(0, 10);
-	let mut amount_mul:f64 = 0.0;
+fn valid_amount(amount: &f64) -> bool {
+    fn from_f64(f: f64) -> Option<Decimal> {
+        num::FromPrimitive::from_f64(f)
+    }
+    let mut valid = true;
 
-	if let Some(tmp) = from_f64(*amount){
-		amount_dec = tmp;
-	};
-	if let Some(tmp) = from_f64(myriad){
-		myriad_dec = tmp;
-	};
+    let myriad: f64 = 10000.0;
+    let mut amount_dec = Decimal::new(0, 10);
+    let mut myriad_dec = Decimal::new(0, 10);
+    let mut amount_mul: f64 = 0.0;
 
-	if let Some(tmp) = amount_dec.mul(myriad_dec).to_f64(){
-		amount_mul = tmp;
-	};
-	
-	
-        if  amount_mul != amount_mul.floor() {
-		valid = false;
-	}
+    if let Some(tmp) = from_f64(*amount) {
+        amount_dec = tmp;
+    };
+    if let Some(tmp) = from_f64(myriad) {
+        myriad_dec = tmp;
+    };
 
-	println!("---------{}---",amount_mul);
-	println!("---------{}---",amount.mul(myriad));
-	println!("---------{}---",valid);
-	valid
+    if let Some(tmp) = amount_dec.mul(myriad_dec).to_f64() {
+        amount_mul = tmp;
+    };
+
+    if amount_mul != amount_mul.floor() {
+        valid = false;
+    }
+
+    println!("---------{}---", amount_mul);
+    println!("---------{}---", amount.mul(myriad));
+    println!("---------{}---", valid);
+    valid
 }
 
 /**
@@ -157,6 +147,7 @@ fn valid_rule_issue_token(private_key: &str, account: &str, token: &str, amount:
         H、跨机构走shell填充memo，然后transfer和account都要更新
 
         I、如何保证用户才能调用转账接口，不能随便一个人都能调用这个接口，---传transfer的时候要传私钥
+	J 、自己转自己也不行
 **/
 fn valid_rule_transfer(
     private_key: &str,
@@ -174,17 +165,13 @@ fn valid_rule_transfer(
         private_key, account_from, token, amount, private_key_db
     );
 
-    println!(
-        "amount_clone.mul(10000.0)={}----amount_clone.mul(10000.0).floor()={}",
-        amount_clone * 10000.0,
-        amount_clone.mul(10000.0).floor()
-    );
 
     //这里的浮点型有bug，100000000000000.01显示小于100000000000000.0000,先不管
     if Some(private_key) != Some(private_key_db)
         || amount_clone < 0.0
         || !valid_amount(amount)
         || !dealmongo::get_token_info(token)
+	|| account_to.to_string() == account_from.to_string()
         || token.len() > 7
         || account_to.len() > 30
     {
@@ -283,23 +270,41 @@ pub fn transfer_by_eos(account_from: &str, account_to: &str, amount: &f64, token
     let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
     list_dir.arg("--url");
     list_dir.arg("http://27.155.88.209:8888");
-    list_dir.arg("push");
-    list_dir.arg("action");
-    list_dir.arg("usrbbb");
-    list_dir.arg("transfer");
-    //这里和老王的json格式少了个大括号，后边改
-    let transfer_token_amount = format!(
-        "[\"{}\",\"{}\",\"{} {}\",\"\"from\":\"{}\",\"to\":\"{}\"\"]",
-        official_from, official_to, amount, token, from_prefix, to_prefix
-    );
-    println!("transfer_token_amount={}", transfer_token_amount);
-    //list_dir.arg("[\"usrbbb\",\"1000000000.0000 AAH\",\"\"]");
-    //'[ "bdaex", "'${office}'", "'${amount}' '${coin}'", "{\"from\":\"official\",\"to\":\"'${address}'\"}" ]'
+    if token != "VSC".to_string(){
+	    list_dir.arg("push");
+	    list_dir.arg("action");
+	    list_dir.arg("usrbbb");
+	    list_dir.arg("transfer");
+	    //这里和老王的json格式少了个大括号，后边改
+	    let transfer_token_amount = format!(
+		"[\"{}\",\"{}\",\"{} {}\",\"\"from\":\"{}\",\"to\":\"{}\"\"]",
+		official_from, official_to, amount, token, from_prefix, to_prefix
+	    );
+	    println!("transfer_token_amount={}", transfer_token_amount);
+	    //list_dir.arg("[\"usrbbb\",\"1000000000.0000 AAH\",\"\"]");
+	    //'[ "bdaex", "'${office}'", "'${amount}' '${coin}'", "{\"from\":\"official\",\"to\":\"'${address}'\"}" ]'
 
-    list_dir.arg(transfer_token_amount);
-    list_dir.arg("-p");
-    let sigh_official = format!("{}@active", official_from);
-    list_dir.arg(sigh_official);
+	    list_dir.arg(transfer_token_amount);
+	    list_dir.arg("-p");
+	    let sigh_official = format!("{}@active", official_from);
+	    list_dir.arg(sigh_official);
+    }else{
+		println!("vscccccccccccc");
+	//	../cleos --url http://27.155.88.209:8888  transfer bdaex  ${office}  "${amount} VSC" "{\"from\":\"official\",\"to\":\"${address}\"}"
+	    list_dir.arg("transfer");
+	    list_dir.arg(official_from);
+	    list_dir.arg(official_to);
+	    let amount_vsc = format!("{} VSC",amount);
+	    println!("ddddd---{}",amount_vsc);
+	    //这里和老王的json格式少了个大括号，后边改
+	    list_dir.arg(amount_vsc);
+	   let transfer_token_amount = format!("\"\"from\":\"{}\",\"to\":\"{}\"\"",from_prefix, to_prefix);
+	    println!("transfer_token_amount={}", transfer_token_amount);
+	  //  list_dir.arg(transfer_token_amount);
+
+    }
+
+    //let getinfo2 = list_dir.status().expect("process failed to execute");
     let getinfo = list_dir.output().expect("process failed to execute");
     let mut one = getinfo.stdout;
     one.reverse();
@@ -312,27 +317,20 @@ pub fn transfer_by_eos(account_from: &str, account_to: &str, amount: &f64, token
     assert_ne!(issue_result, "".to_string(), "transfer token error");
 }
 
-
 pub fn registmethod() {
     let mut io = IoHandler::default();
 
+    //let stringkk = num::FromPrimitive::from_f64(2224.0001f64).unwrap().to_string();
 
-
-
-//let stringkk = num::FromPrimitive::from_f64(2224.0001f64).unwrap().to_string();
-
-	
     io.add_method("say_hello", |_| {
-	let amount:f64 = 2224.0001;
-	let s = valid_amount(&amount);
-	println!("====={}",s);
-	let amount2:f64 = 2224.00013;
-	let s2 = valid_amount(&amount2);
-	println!("====={}",s2);
+        let amount: f64 = 2224.0001;
+        let s = valid_amount(&amount);
+        println!("====={}", s);
+        let amount2: f64 = 2224.00013;
+        let s2 = valid_amount(&amount2);
+        println!("====={}", s2);
 
-
-
-	Ok(Value::String("hellossss".into()))
+        Ok(Value::String("hellossss".into()))
     });
 
     io.add_method("issue_token", |_params: Params| {
