@@ -1,4 +1,16 @@
 extern crate ring;
+//#[macro_use]
+//extern crate jsonrpc_client_core;
+//extern crate jsonrpc_client_http;
+
+use jsonrpc_client_http::HttpTransport;
+
+jsonrpc_client!(pub struct FizzBuzzClient {
+    /// Returns the fizz-buzz string for the given number.
+    pub fn fizz_buzz(&mut self, number: u64) -> RpcRequest<String>;
+});
+
+
 use jsonrpc_http_server::jsonrpc_core::*;
 use jsonrpc_http_server::*;
 use ring::{
@@ -190,6 +202,12 @@ fn valid_rule_transfer(
         println!("余额不足");
         valid = false;
     }
+    if dealmongo::get_account_token_balance(&account_from, "VSC") < 0.1 {
+        println!("手续费不足");
+        valid = false;
+    }
+
+
 
     valid
 }
@@ -330,12 +348,17 @@ pub fn registmethod() {
     //let stringkk = num::FromPrimitive::from_f64(2224.0001f64).unwrap().to_string();
 
     io.add_method("say_hello", |_| {
-        let amount: f64 = 2224.0001;
-        let s = valid_amount(&amount);
-        println!("====={}", s);
-        let amount2: f64 = 2224.00013;
-        let s2 = valid_amount(&amount2);
-        println!("====={}", s2);
+    let transport = HttpTransport::new().standalone().unwrap();
+    let transport_handle = transport
+        .handle("http://27.155.88.209:8888/v1/chain/get_info")
+        .unwrap();
+    let mut client = FizzBuzzClient::new(transport_handle);
+    let result1 = client.fizz_buzz(3).call().unwrap();
+    let result2 = client.fizz_buzz(4).call().unwrap();
+    let result3 = client.fizz_buzz(5).call().unwrap();
+
+    // Should print "fizz 4 buzz" if the server implemented the service correctly
+    println!("{} {} {}", result1, result2, result3);
 
         Ok(Value::String("hellossss".into()))
     });
@@ -454,10 +477,11 @@ pub fn registmethod() {
             i += 1;
         }
         println!("txid={},", txid);
-
+	
         let new_amount_fromaccount =
             dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token)
                 - &parsed.amount;
+
         let new_amount_toaccount =
             &parsed.amount + dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token);
 
@@ -482,6 +506,17 @@ pub fn registmethod() {
 
         dealmongo::update_account_info(&parsed.fromaccount, &parsed.token, &new_amount_fromaccount);
         dealmongo::update_account_info(&parsed.toaccount, &parsed.token, &new_amount_toaccount);
+
+
+	//每笔交易扣除0.1的手续费,eos侧数据同也做
+	let after_fee_amount_fromaccont = dealmongo::get_account_token_balance(&parsed.fromaccount, "VSC") - 0.1;
+	let after_fee_amount_toaccount = dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC") + 0.1;
+
+        dealmongo::update_account_info("2BCCA62F@gxy111111112", "VSC", &after_fee_amount_toaccount);
+        dealmongo::update_account_info(&parsed.fromaccount, "VSC", &after_fee_amount_fromaccont);
+	let fee_eos = 0.1f64;
+	transfer_by_eos(&parsed.fromaccount,"2BCCA62F@gxy111111112",&fee_eos,"VSC");
+
 
         dealmongo::transferinsert(
             &txid,
