@@ -13,6 +13,8 @@ ring = "0.14.6"
 base64 = "0.10.1"
 untrusted = "0.6.2"
 #rug = "0.6.0"
+rust_decimal = "1.0.1"
+num = "0.2"
 
 [dependencies.rug]
 version = "0.6.0"

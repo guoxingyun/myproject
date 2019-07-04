@@ -15,6 +15,16 @@ use std::mem;
 use std::ops::Mul;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+extern crate rust_decimal;
+//use std::str::FromStr;
+use rust_decimal::{Decimal, RoundingStrategy};
+use std::{
+    cmp::{Ordering, Ordering::*},
+    str::FromStr,
+};
+use num::{ToPrimitive, Zero};
+
+
 
 
 
@@ -63,6 +73,40 @@ fn analyjson() {
     let _hello = list_dir.status().expect("process failed to execute");
 }
 
+fn valid_amount(amount:& f64) -> bool{
+	fn from_f64(f: f64) -> Option<Decimal> {
+		num::FromPrimitive::from_f64(f)
+	}
+	let mut valid = true;
+	
+	
+	let myriad:f64 = 10000.0;
+	let mut amount_dec = Decimal::new(0, 10);
+	let mut myriad_dec = Decimal::new(0, 10);
+	let mut amount_mul:f64 = 0.0;
+
+	if let Some(tmp) = from_f64(*amount){
+		amount_dec = tmp;
+	};
+	if let Some(tmp) = from_f64(myriad){
+		myriad_dec = tmp;
+	};
+
+	if let Some(tmp) = amount_dec.mul(myriad_dec).to_f64(){
+		amount_mul = tmp;
+	};
+	
+	
+        if  amount_mul != amount_mul.floor() {
+		valid = false;
+	}
+
+	println!("---------{}---",amount_mul);
+	println!("---------{}---",amount.mul(myriad));
+	println!("---------{}---",valid);
+	valid
+}
+
 /**
 A、精度4位、
 B、额度上限、100000000000000.0000--一百万亿--精度还没
@@ -87,7 +131,7 @@ fn valid_rule_issue_token(private_key: &str, account: &str, token: &str, amount:
     if Some(private_key) != Some(private_key_db)
         || amount_clone > 100000000000000.0000
         || amount_clone < 0.0
-        || amount_clone.mul(10000.0) != amount_clone.mul(10000.0).floor()
+        || !valid_amount(amount)
         || dealmongo::get_token_info(token)
         || token.len() > 7
     {
@@ -139,7 +183,7 @@ fn valid_rule_transfer(
     //这里的浮点型有bug，100000000000000.01显示小于100000000000000.0000,先不管
     if Some(private_key) != Some(private_key_db)
         || amount_clone < 0.0
-        || amount_clone.mul(10000.0) != amount_clone.mul(10000.0).floor()
+        || valid_amount(amount)
         || !dealmongo::get_token_info(token)
         || token.len() > 7
         || account_to.len() > 30
@@ -268,10 +312,28 @@ pub fn transfer_by_eos(account_from: &str, account_to: &str, amount: &f64, token
     assert_ne!(issue_result, "".to_string(), "transfer token error");
 }
 
+
 pub fn registmethod() {
     let mut io = IoHandler::default();
 
-    io.add_method("say_hello", |_| Ok(Value::String("hellossss".into())));
+
+
+
+//let stringkk = num::FromPrimitive::from_f64(2224.0001f64).unwrap().to_string();
+
+	
+    io.add_method("say_hello", |_| {
+	let amount:f64 = 2224.0001;
+	let s = valid_amount(&amount);
+	println!("====={}",s);
+	let amount2:f64 = 2224.00013;
+	let s2 = valid_amount(&amount2);
+	println!("====={}",s2);
+
+
+
+	Ok(Value::String("hellossss".into()))
+    });
 
     io.add_method("issue_token", |_params: Params| {
         let parsed: IssueTokenInfo = _params.parse().unwrap();
