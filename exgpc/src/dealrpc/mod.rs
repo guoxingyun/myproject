@@ -183,7 +183,7 @@ fn valid_rule_transfer(
     //这里的浮点型有bug，100000000000000.01显示小于100000000000000.0000,先不管
     if Some(private_key) != Some(private_key_db)
         || amount_clone < 0.0
-        || valid_amount(amount)
+        || !valid_amount(amount)
         || !dealmongo::get_token_info(token)
         || token.len() > 7
         || account_to.len() > 30
