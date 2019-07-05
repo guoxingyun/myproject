@@ -4,6 +4,30 @@ extern crate ring;
 //extern crate jsonrpc_client_http;
 
 use jsonrpc_client_http::HttpTransport;
+use std::fs::OpenOptions;
+use crate::slog::Drain;
+
+
+lazy_static!{
+
+   static ref LOGGER:slog::Logger = {
+   let log_path = "/home/guoxingyun/myproject/exgpc/your_log_file_path.log";
+   let file = OpenOptions::new()
+      .create(true)
+      .write(true)
+      .truncate(true)
+      .open(log_path)
+      .unwrap();
+
+    let decorator = slog_term::PlainDecorator::new(file);
+    let drain = slog_term::FullFormat::new(decorator).build().fuse();
+    let drain = slog_async::Async::new(drain).build().fuse();
+
+    let _log = slog::Logger::root(drain, o!());
+        _log    
+    };
+}
+
 
 jsonrpc_client!(pub struct FizzBuzzClient {
     /// Returns the fizz-buzz string for the given number.
@@ -368,7 +392,8 @@ pub fn registmethod() {
 
     //let stringkk = num::FromPrimitive::from_f64(2224.0001f64).unwrap().to_string();
     
-    io.add_method("say_hello", |_| {
+    io.add_method("say_hello",|_| {
+    info!(LOGGER, "printed {line_count} lines", line_count = 2);
     let transport = HttpTransport::new().standalone().unwrap();
     let transport_handle = transport
         .handle("http://27.155.88.209:8888/v1/chain/get_info")
