@@ -386,6 +386,34 @@ pub fn transfer_by_eos(account_from: &str, account_to: &str, amount: &f64, token
 
     assert_ne!(issue_result, "".to_string(), "transfer token error");
 }
+fn get_height_hash() -> (String,String){
+	let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
+        list_dir.arg("--url");
+        list_dir.arg("http://27.155.88.209:8888");
+        list_dir.arg("get");
+        list_dir.arg("info");
+        let getinfo = list_dir.output().expect("process failed to execute");
+        let mut one = getinfo.stdout;
+        one.reverse();
+
+        let mut all: String = "".to_string();
+        while let Some(top) = one.pop() {
+            all += &(top as char).to_string();
+        }
+	println!("info====={}",all);
+	
+//临时先这样写死，后边快高涨到9位数，2年后才出问题
+	let mut height = "0".to_string();
+	 if let Some(tmp) = all.get(136..144){
+		height = tmp.to_string();
+	};
+
+	let mut head_hash = "0".to_string();
+	 if let Some(tmp) = all.get(309..373){
+		head_hash = tmp.to_string();
+	};
+	(height,head_hash)
+}
 
 pub fn registmethod() {
     let mut io = IoHandler::default();
@@ -396,8 +424,16 @@ pub fn registmethod() {
     info!(LOGGER, "printed {line_count} lines", line_count = 2);
     let transport = HttpTransport::new().standalone().unwrap();
     let transport_handle = transport
-        .handle("http://27.155.88.209:8888/v1/chain/get_info")
+        //.handle("http://27.155.88.209:8888/v1/chain/get_info")
+        .handle("https://api.fizzbuzzexample.org/rpc/")
         .unwrap();
+/**
+    let mut header_tmp = &transport_handle;
+    if let Ok(tmp) =  transport_handle {
+		header_tmp = tmp;
+	}
+**/
+    //let header_handle = header_tmp.set_header()
     let mut client = FizzBuzzClient::new(transport_handle);
     let result1 = client.fizz_buzz(3).call().unwrap();
     let result2 = client.fizz_buzz(4).call().unwrap();
@@ -457,18 +493,9 @@ pub fn registmethod() {
     });
 
     io.add_method("get_info", |_| {
-        let mut list_dir = Command::new("curl");
-        list_dir.arg("--url");
-        list_dir.arg("http://27.155.88.209:8888/v1/chain/get_info");
-        let getinfo = list_dir.output().expect("process failed to execute");
-        let mut one = getinfo.stdout;
-        one.reverse();
-
-        let mut all: String = "".to_string();
-        while let Some(top) = one.pop() {
-            all += &(top as char).to_string();
-        }
-        Ok(Value::String(all))
+	 let (height,hash) = get_height_hash();
+	let all = format!("--height={}--hash==={}",height,hash);
+         Ok(Value::String(all))
     });
 
     io.add_method("account_history", |_params: Params| {
