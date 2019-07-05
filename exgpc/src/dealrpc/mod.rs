@@ -77,6 +77,27 @@ fn analyjson() {
     let _hello = list_dir.status().expect("process failed to execute");
 }
 
+fn from_f64(f: f64) -> Option<Decimal> {
+        num::FromPrimitive::from_f64(f)
+}
+
+
+fn decimal_f64(amount: & f64) -> f64{
+let mut init_dec = Decimal::new(0, 10);
+let mut amount_new = 0f64;
+    if let Some(tmp) = from_f64(*amount) {
+        init_dec = tmp;
+    };
+
+    if let Some(tmp) = init_dec.to_f64() {
+        amount_new = tmp;
+    };
+   println!("---{}---{}",amount,amount_new);
+
+   amount_new
+	
+}
+
 fn valid_amount(amount: &f64) -> bool {
     fn from_f64(f: f64) -> Option<Decimal> {
         num::FromPrimitive::from_f64(f)
@@ -346,7 +367,7 @@ pub fn registmethod() {
     let mut io = IoHandler::default();
 
     //let stringkk = num::FromPrimitive::from_f64(2224.0001f64).unwrap().to_string();
-
+    
     io.add_method("say_hello", |_| {
     let transport = HttpTransport::new().standalone().unwrap();
     let transport_handle = transport
@@ -366,18 +387,19 @@ pub fn registmethod() {
     io.add_method("issue_token", |_params: Params| {
         let parsed: IssueTokenInfo = _params.parse().unwrap();
 
+	let amount = decimal_f64(&parsed.amount);
         let issue_valid = valid_rule_issue_token(
             &parsed.private_key,
             &parsed.account,
             &parsed.token,
-            &parsed.amount,
+            &amount,
         );
         println!("issue_valid={}", issue_valid);
         if issue_valid == true {
-            crate::dealrpc::issue_by_eos(&parsed.account, &parsed.token, &parsed.amount);
+            crate::dealrpc::issue_by_eos(&parsed.account, &parsed.token, &amount);
 
-            dealmongo::update_account_info(&parsed.account, &parsed.token, &parsed.amount);
-            dealmongo::update_token_info(&parsed.account, &parsed.token, &parsed.amount);
+            dealmongo::update_account_info(&parsed.account, &parsed.token, &amount);
+            dealmongo::update_token_info(&parsed.account, &parsed.token, &amount);
 
             Ok(Value::String("issue token OK".to_string()))
         } else {
@@ -439,12 +461,14 @@ pub fn registmethod() {
 
     io.add_method("transfer", |_params: Params| {
         let parsed: Transfer = _params.parse().unwrap();
+	let amount = decimal_f64(&parsed.amount);
+
         let valid_transfer = valid_rule_transfer(
             &parsed.private_key,
             &parsed.fromaccount,
             &parsed.toaccount,
             &parsed.token,
-            &parsed.amount,
+            &amount,
         );
         if valid_transfer == false {
             return Ok(Value::String("params is not right".to_string()));
@@ -456,7 +480,7 @@ pub fn registmethod() {
             .expect("Time went backwards");
         let _ms = since_the_epoch.as_secs() as i64 * 1000i64
             + (since_the_epoch.subsec_nanos() as f64 / 1_000_000.0) as i64;
-        //let timeAndInfo = b"ms.to_string() + &parsed.fromaccount + &parsed.toaccount + &parsed.amount + &parsed.token"; //偷懒但是仍能保证txid的唯一性
+        //let timeAndInfo = b"ms.to_string() + &parsed.fromaccount + &parsed.toaccount + &amount + &parsed.token"; //偷懒但是仍能保证txid的唯一性
         let timeAndInfo =
             b"ms.to_string() + &parsed.fromaccount + &parsed.toaccount + &parsed.token";
 
@@ -480,15 +504,15 @@ pub fn registmethod() {
 	
         let new_amount_fromaccount =
             dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token)
-                - &parsed.amount;
+                - &amount;
 
         let new_amount_toaccount =
-            &parsed.amount + dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token);
+            &amount + dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token);
 
         println!(
             "--{}---{}--{}--",
             dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token),
-            parsed.amount,
+            amount,
             dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token)
         );
 
@@ -499,7 +523,7 @@ pub fn registmethod() {
             transfer_by_eos(
                 &parsed.fromaccount,
                 &parsed.toaccount,
-                &parsed.amount,
+                &amount,
                 &parsed.token,
             );
         }
@@ -522,7 +546,7 @@ pub fn registmethod() {
             &txid,
             &parsed.fromaccount,
             &parsed.toaccount,
-            &parsed.amount,
+            &amount,
             &parsed.token,
         );
 
