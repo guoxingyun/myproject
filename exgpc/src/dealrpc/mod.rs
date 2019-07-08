@@ -8,6 +8,7 @@ use std::fs::OpenOptions;
 use crate::slog::Drain;
 
 
+
 lazy_static!{
 
    static ref LOGGER:slog::Logger = {
@@ -615,6 +616,80 @@ pub fn registmethod() {
         let rng = rand::SystemRandom::new();
         let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
         let peer_private_key_bytes = pkcs8_bytes.as_ref();
+
+
+
+
+
+
+
+
+ let rng = rand::SystemRandom::new();
+
+    for alg in &[
+        &signature::ECDSA_P256_SHA256_ASN1_SIGNING,
+        &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
+        &signature::ECDSA_P384_SHA384_ASN1_SIGNING,
+        &signature::ECDSA_P384_SHA384_FIXED_SIGNING,
+    ] {
+        let pkcs8 = signature::EcdsaKeyPair::generate_pkcs8(alg, &rng).unwrap();
+        let peer_private_key_bytes = pkcs8.as_ref();
+        println!("kkk======={:?}",peer_private_key_bytes);
+        println!();
+
+//        #[cfg(feature = "use_heap")]
+        let key_pair = signature::EcdsaKeyPair::from_pkcs8(*alg, untrusted::Input::from(pkcs8.as_ref())).unwrap();
+	let peer_public_key_bytes = key_pair.public_key().as_ref();
+	println!("llllll====={:?}",peer_public_key_bytes);
+        let mut publish_key = "".to_string();
+        let mut private_key = "".to_string();
+
+        let mut i = 0;
+/*
+	while i < peer_public_key_bytes.len() {
+		    let tmp = (peer_public_key_bytes[i] as char).to_string();
+		    publish_key += &tmp;
+		    i += 1;
+		}
+	while i < peer_private_key_bytes.len() {
+	    let tmp =(peer_private_key_bytes[i] as char).to_string();
+	    private_key += &tmp;
+	    i += 1;
+	}
+*/
+	while i < peer_public_key_bytes.len() {
+            let tmp = format!("{:X}", peer_public_key_bytes[i]);
+            publish_key += &tmp;
+            i += 1;
+        }
+        while i < peer_private_key_bytes.len() {
+            let tmp = format!("{:X}", peer_private_key_bytes[i]);
+            private_key += &tmp;
+            i += 1;
+        }
+
+
+        println!("--pri={}-------pub={}",private_key,publish_key);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         // Normally the application would store the PKCS#8 file persistently. Later
         // it would read the PKCS#8 file from persistent storage to use it.
