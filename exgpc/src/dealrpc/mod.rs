@@ -470,9 +470,9 @@ pub fn registmethod() {
 	info!(LOGGER, "printed {line_count} lines", line_count = 2);
 
         let parsed: Sig = _params.parse().unwrap();
-	transfer_verify::sign_transaction(&parsed.prikey,&parsed.raw);
+	let sigdata = transfer_verify::sign_transaction(&parsed.prikey,&parsed.raw);
 
-        Ok(Value::String("hellossss".into()))
+        Ok(Value::String(sigdata))
     });
 
 /*
