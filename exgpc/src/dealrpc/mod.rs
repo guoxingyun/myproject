@@ -475,17 +475,17 @@ pub fn registmethod() {
         Ok(Value::String(sigdata))
     });
 
-/*
+
     io.add_method("push_transaction",|_params: Params| {
 	info!(LOGGER, "printed {line_count} lines", line_count = 2);
 
         let parsed: SigAndRaw = _params.parse().unwrap();
-	transfer_verify::push_transaction(parsed.sign,parsed.raw);
+	transfer_verify::push_transaction(&parsed.sig,&parsed.raw);
 
         Ok(Value::String("hellossss".into()))
     });
 
-  */  
+    
    
     io.add_method("issue_token", |_params: Params| {
         let parsed: IssueTokenInfo = _params.parse().unwrap();

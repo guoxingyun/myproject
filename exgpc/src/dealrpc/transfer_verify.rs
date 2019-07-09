@@ -114,14 +114,11 @@ pub fn sign_transaction(prikey:&str,rawdata:&str) -> String{
 
 	
 	println!("sig_data={:?}==={}==",pkcs8_bytes,rawdata);
-	println!("sig_data={:?}==len{}=",pkcs8_bytes,pkcs8_bytes.len());
 
 	 let key_pair =
             signature::Ed25519KeyPair::from_pkcs8(untrusted::Input::from(pkcs8_bytes.as_ref()))
                 .unwrap();
 
-
-      //  const MESSAGE: &[u8] = b"hello, world";
 	let message = rawdata.to_string().into_bytes();
         let sig_data = key_pair.sign(&message);
 	println!("sig_data==={:?}",sig_data.as_ref());
@@ -130,25 +127,48 @@ pub fn sign_transaction(prikey:&str,rawdata:&str) -> String{
 	sign_bin
 }
 
-/*
-pub fn deserialize() -> (String,String,String,String){
 
-	println!("b64----");
-	
-	let bin = serialize("from:sssks","to:kskdkksd@eee","token:VSC","amount:1000");
+pub fn deserialize(rawdata:&str) -> Vec<u8>{
 
-	println!("b64----");
-	let b64 = base64::encode(&bin);
-	println!("b64--{}--",b64);
-  
-	let from_pubkey = "0".to_string();
-	let to_pubkey = "0".to_string();
-	let token = "0".to_string();
-	let amount = "0".to_string();
 
-  (from_pubkey,to_pubkey,token,amount)
+	println!("deserialize.rawdata={}",rawdata);
+	let mut bytes:Vec<u8> =Vec::new();
+	let mut i = 0;
+	while None != rawdata.get(i..i+2) {
+		
+	     let mut tmp2 = "".to_string();
+	    
+            if let Some(tmp) = rawdata.get(i..i+2){
+		tmp2 = tmp.to_string();
+	   }
+	   
+	   if let Ok(tmp3) = u8::from_str_radix(&tmp2,16){
+		
+	   println!("str={},bytes={}",tmp2,tmp3);
+	   	bytes.push(tmp3);
+	   }
+		
+            i += 2;
+        }
+	println!("kkkkk{:?}",bytes);
+	bytes
+      
 }
 
+fn verify_sign(sign_data:&str,raw_data:&str){
+	  
+	let message = deserialize(raw_data);
+	let peer_public_key_bytes = deserialize(raw_data);
+	let sig_bytes = deserialize(sign_data);
+	println!("message={:?}===sig_bytes={:?}",message,sig_bytes);	
+	  let peer_public_key = untrusted::Input::from(&peer_public_key_bytes);	
+	  let msg = untrusted::Input::from(&message);
+          let sig = untrusted::Input::from(&sig_bytes);
+	signature::verify(&signature::ED25519, peer_public_key, msg, sig).unwrap();
+}
+
+
+/*
 fn get_txid() -> String{
 
  let start = SystemTime::now();
@@ -181,8 +201,11 @@ fn get_txid() -> String{
         println!("txid={},", txid);
 
 }
-pub fn push_transaction(sign:&str,data:&str) -> String{
+*/
+pub fn push_transaction(sign_data:&str,raw_data:&str) -> String{
 
+	verify_sign(sign_data,raw_data);
+/*
 	let txid = "0".to_string();
 
 	deserialize(data);
@@ -252,9 +275,11 @@ let new_amount_fromaccount =
 
 
 	txid
+*/
+	"sss".to_string()
 }
 
-
+/*
 pub fn create_key() -> (String,String){
 	 	
 	let pubkey = "0".to_string();
