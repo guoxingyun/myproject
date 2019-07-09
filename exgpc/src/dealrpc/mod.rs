@@ -57,6 +57,8 @@ use rust_decimal::Decimal;
 use num::ToPrimitive;
 
 pub mod dealmongo;
+mod transfer_verify;
+
 #[derive(Deserialize, Debug)]
 struct Transfer {
     private_key: String,
@@ -65,6 +67,33 @@ struct Transfer {
     amount: f64,
     token: String,
 }
+
+
+#[derive(Deserialize, Debug)]
+struct SigAndRaw {
+    sig: String,
+    raw: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct Sig {
+    prikey: String,
+    raw: String,
+}
+
+
+
+#[derive(Deserialize, Debug)]
+struct DataInfo {
+    head: String,//issue_token,transfer
+    fromaccount: String,
+    toaccount: String,
+    token: String,
+    amount: f64,
+}
+
+
+
 
 #[derive(Deserialize, Debug)]
 struct IssueTokenInfo {
@@ -422,29 +451,42 @@ pub fn registmethod() {
     
     io.add_method("say_hello",|_| {
     info!(LOGGER, "printed {line_count} lines", line_count = 2);
-    let transport = HttpTransport::new().standalone().unwrap();
-    let transport_handle = transport
-        //.handle("http://27.155.88.209:8888/v1/chain/get_info")
-        .handle("https://api.fizzbuzzexample.org/rpc/")
-        .unwrap();
-/**
-    let mut header_tmp = &transport_handle;
-    if let Ok(tmp) =  transport_handle {
-		header_tmp = tmp;
-	}
-**/
-    //let header_handle = header_tmp.set_header()
-    let mut client = FizzBuzzClient::new(transport_handle);
-    let result1 = client.fizz_buzz(3).call().unwrap();
-    let result2 = client.fizz_buzz(4).call().unwrap();
-    let result3 = client.fizz_buzz(5).call().unwrap();
+    //transfer_verify::deserialize();
 
-    // Should print "fizz 4 buzz" if the server implemented the service correctly
-    println!("{} {} {}", result1, result2, result3);
+        Ok(Value::String("hellossss".into()))
+    });
+//离线签名考虑是发币还是交易做判断
+
+    io.add_method("json_to_bin",|_params: Params| {
+        info!(LOGGER, "printed {line_count} lines", line_count = 2);
+        let parsed: DataInfo = _params.parse().unwrap();
+        let bin = transfer_verify::json_to_bin(&parsed.head,&parsed.fromaccount,&parsed.toaccount,&parsed.token,&parsed.amount);
+
+        Ok(Value::String(bin))
+
+    });
+
+    io.add_method("sigh_transaction",|_params: Params| {
+	info!(LOGGER, "printed {line_count} lines", line_count = 2);
+
+        let parsed: Sig = _params.parse().unwrap();
+	transfer_verify::sign_transaction(&parsed.prikey,&parsed.raw);
 
         Ok(Value::String("hellossss".into()))
     });
 
+/*
+    io.add_method("push_transaction",|_params: Params| {
+	info!(LOGGER, "printed {line_count} lines", line_count = 2);
+
+        let parsed: SigAndRaw = _params.parse().unwrap();
+	transfer_verify::push_transaction(parsed.sign,parsed.raw);
+
+        Ok(Value::String("hellossss".into()))
+    });
+
+  */  
+   
     io.add_method("issue_token", |_params: Params| {
         let parsed: IssueTokenInfo = _params.parse().unwrap();
 
@@ -513,7 +555,8 @@ pub fn registmethod() {
 
     io.add_method("transfer", |_params: Params| {
         let parsed: Transfer = _params.parse().unwrap();
-	let amount = decimal_f64(&parsed.amount);
+
+        let amount = decimal_f64(&parsed.amount);
 
         let valid_transfer = valid_rule_transfer(
             &parsed.private_key,
@@ -525,8 +568,7 @@ pub fn registmethod() {
         if valid_transfer == false {
             return Ok(Value::String("params is not right".to_string()));
         }
-
-        let start = SystemTime::now();
+	 let start = SystemTime::now();
         let since_the_epoch = start
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards");
@@ -552,8 +594,10 @@ pub fn registmethod() {
             txid += &tmp;
             i += 1;
         }
+
         println!("txid={},", txid);
-	
+
+
         let new_amount_fromaccount =
             dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token)
                 - &amount;
@@ -653,24 +697,40 @@ pub fn registmethod() {
             publish_key += &tmp;
             i += 1;
         }
+
+	let mut i = 0;
         while i < peer_private_key_bytes.len() {
-            let tmp = format!("{:X}", peer_private_key_bytes[i]);
+	 let mut tmp = "".to_string();
+	    if(peer_private_key_bytes[i] < 16){
+            tmp = format!("0{:X}", peer_private_key_bytes[i]);
+	   }else{
+            tmp = format!("{:X}", peer_private_key_bytes[i]);
+	   }
             private_key += &tmp;
             i += 1;
         }
         let pubkey = publish_key.clone();
-        let ptr = publish_key.as_ptr();
-        let _len = publish_key.len();
-        let capacity = publish_key.capacity();
-        mem::forget(publish_key);
-        let publish_key8 = unsafe { String::from_raw_parts(ptr as *mut _, 8, capacity) };
+	let mut base58_address = "0".to_string();
+	if let Ok(tmp) = cryptonote_base58::to_base58(peer_public_key_bytes.to_vec()){
+		println!("sss={}",tmp);
+		base58_address = tmp;
+		
+	}
 
-        let address = format!("{}@{}", publish_key8, parsed.official);
+	let mut base58_address8 = "0".to_string();	
+	if let Some(tmp) = base58_address.get(0..8){
+		base58_address8 = tmp.to_string();
+	}
+	
+
+        let address = format!("{}@{}",base58_address8, parsed.official);
         let keypairs = format!("address={},private={}", address, private_key);
 
         signature::verify(&signature::ED25519, peer_public_key, msg, sig).unwrap();
 
         dealmongo::update_key_info(&private_key, &pubkey, &address);
+	
+
         Ok(Value::String(keypairs))
     });
 

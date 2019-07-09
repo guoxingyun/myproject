@@ -121,6 +121,65 @@ pub fn get_transaction_info(txid: &str) -> Vec<TransferInfo> {
     transfer
 }
 
+
+pub fn get_account_by_pubkey(pubkey: &str) -> String{
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("key_info");
+
+    let doc = doc! {
+        "publish_key": pubkey,
+    };
+    let cursor = coll
+        .find(Some(doc.clone()), None)
+        .ok()
+        .expect("Failed to execute find.");
+
+    let mut account = "".to_string();
+
+    for result in cursor {
+        if let Ok(item) = result {
+            if let Some(&Bson::String(ref address)) = item.get("address") {
+                account = address.to_string();
+            }
+        }
+    }
+    account
+}
+
+
+
+pub fn get_pubkey_by_account(account: &str) -> String{
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("key_info");
+
+    let doc = doc! {
+        "address": account,
+    };
+
+   println!("pubkey={}",account);
+    let cursor = coll
+        .find(Some(doc.clone()), None)
+        .ok()
+        .expect("Failed to execute find.");
+
+    let mut pubkey = "".to_string();
+
+    for result in cursor {
+        if let Ok(item) = result {
+            if let Some(&Bson::String(ref publish_key)) = item.get("publish_key") {
+                pubkey = publish_key.to_string();
+            }
+        }
+    }
+   println!("pubkey={}",pubkey);
+    pubkey
+}
+
+
 pub fn get_account_token_balance(account: &str, token: &str) -> f64 {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
