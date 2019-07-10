@@ -124,7 +124,7 @@ fn from_f64(f: f64) -> Option<Decimal> {
     num::FromPrimitive::from_f64(f)
 }
 
-fn decimal_f64(amount: &f64) -> f64 {
+pub fn decimal_f64(amount: &f64) -> f64 {
     let mut init_dec = Decimal::new(0, 10);
     let mut amount_new = 0f64;
     if let Some(tmp) = from_f64(*amount) {
@@ -182,7 +182,7 @@ F、用户也要传私钥、私钥匹配---完成
 除了大小写交给eos处理其他得都在这里判断了
 **/
 
-fn valid_rule_issue_token(private_key: &str, account: &str, token: &str, amount: &f64) -> bool {
+pub fn valid_rule_issue_token(private_key: &str, account: &str, token: &str, amount: &f64) -> bool {
     let mut valid = true;
     let private_key_db = &dealmongo::get_private_key(account);
     let amount_clone = amount.clone();

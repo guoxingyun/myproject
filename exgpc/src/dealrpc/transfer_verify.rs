@@ -4,10 +4,12 @@ use ring::{
     rand::SecureRandom,
     signature::{self, KeyPair},
 };
+
 enum Error {
     InvalidSignature,
 }
 use std::time::{SystemTime, UNIX_EPOCH};
+
 pub fn json_to_bin(
     head: &str,
     fromaccount: &str,
@@ -228,7 +230,7 @@ pub fn get_txid(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) -
     txid
 }
 
-fn getinfo_from_raw(raw_data: &str) -> (String, String, String, String) {
+fn getinfo_from_raw(raw_data: &str) -> (String,String, String, String, String) {
     let mut v: Vec<&str> = raw_data.split("000000").collect();
     v.reverse();
     let mut head = "".to_string();
@@ -275,13 +277,94 @@ fn getinfo_from_raw(raw_data: &str) -> (String, String, String, String) {
         "head=={}\n,frompubkey={}\n,to_pubkey={}\n,token={}\n,amount={}\n",
         head, from_pubkey, to_pubkey, token, amount
     );
-    (
-        "1".to_string(),
-        "2".to_string(),
-        "3".to_string(),
-        "4".to_string(),
-    )
+    (head,from_pubkey,to_pubkey,token,amount)
 }
+
+fn deal_issuetoken(fromaccount:&str,toaccount:&str,token:&str,amount:&f64) -> String{
+
+	let private_key = super::dealmongo::get_private_key(fromaccount);
+	  let amount = super::decimal_f64(amount);
+        let issue_valid =
+            super::valid_rule_issue_token(&private_key,fromaccount,token, &amount);
+        println!("issue_valid={}", issue_valid);
+        if issue_valid == true {
+            crate::dealrpc::issue_by_eos(toaccount, token, &amount);
+
+            super::dealmongo::update_account_info(toaccount, token, &amount);
+            super::dealmongo::update_token_info(toaccount, token, &amount);
+
+          "issue token OK".to_string()
+        } else {
+           "issue token failed".to_string()
+        }
+
+}
+
+fn deal_transfer(fromaccount:&str,toaccount:&str,token:&str,amount:&f64){
+        let txid = "0".to_string();
+
+        let amount = super::decimal_f64(amount);
+	let private_key = super::dealmongo::get_private_key(fromaccount);
+		
+	//其实之前签名校验的时候已经判断了，这里没必要，但为了复用之前的接口
+            let valid_transfer = super::valid_rule_transfer(   
+                &private_key,
+                fromaccount,
+                toaccount,
+                token,
+                &amount,
+            );
+      //      if valid_transfer == false {
+                //return Ok(Value::String("params is not right".to_string()));
+	//	return
+          //  }
+	assert!(valid_transfer);
+
+
+
+    let new_amount_fromaccount =
+                super::dealmongo::get_account_token_balance(fromaccount, token)
+                    - &amount;
+
+            let new_amount_toaccount =
+                &amount + super::dealmongo::get_account_token_balance(toaccount,token);
+
+            println!(
+                "--{}---{}--{}--",
+                super::dealmongo::get_account_token_balance(fromaccount, token),
+                amount,
+                super::dealmongo::get_account_token_balance(toaccount, token)
+            );
+
+            //机构不同得走eos通道，txid用自己得不用eos的
+            if super::get_official_from_account(fromaccount)
+                != super::get_official_from_account(toaccount)
+            {
+                super::transfer_by_eos(
+                    fromaccount,
+                    toaccount,
+                    &amount,
+                    token,
+                );
+            }
+
+            super::dealmongo::update_account_info(fromaccount, token, &new_amount_fromaccount);
+           super::dealmongo::update_account_info(toaccount, token, &new_amount_toaccount);
+
+
+            //每笔交易扣除0.1的手续费,eos侧数据同也做
+            let after_fee_amount_fromaccont = super::dealmongo::get_account_token_balance(fromaccount, "VSC") - 0.1;
+            let after_fee_amount_toaccount = super::dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC") + 0.1;
+
+            super::dealmongo::update_account_info("2BCCA62F@gxy111111112", "VSC", &after_fee_amount_toaccount);
+            super::dealmongo::update_account_info(fromaccount, "VSC", &after_fee_amount_fromaccont);
+            let fee_eos = 0.1f64;
+            super::transfer_by_eos(fromaccount,"2BCCA62F@gxy111111112",&fee_eos,"VSC");
+
+
+           
+}
+
 
 pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
     match verify_sign(sign_data, raw_data) {
@@ -291,78 +374,29 @@ pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
             return "verify_sign fail".to_string();
         }
     }
-    getinfo_from_raw(raw_data);
-    /*
-        let txid = "0".to_string();
-
-        deserialize(data);
-
-        let amount = decimal_f64(&parsed.amount);
-
-            let valid_transfer = valid_rule_transfer(
-                &parsed.private_key,
-                &parsed.fromaccount,
-                &parsed.toaccount,
-                &parsed.token,
-                &amount,
-            );
-            if valid_transfer == false {
-                return Ok(Value::String("params is not right".to_string()));
-            }
-
-
-
-    let new_amount_fromaccount =
-                dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token)
-                    - &amount;
-
-            let new_amount_toaccount =
-                &amount + dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token);
-
-            println!(
-                "--{}---{}--{}--",
-                dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token),
-                amount,
-                dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token)
-            );
-
-            //机构不同得走eos通道，txid用自己得不用eos的
-            if get_official_from_account(&parsed.fromaccount)
-                != get_official_from_account(&parsed.toaccount)
-            {
-                transfer_by_eos(
-                    &parsed.fromaccount,
-                    &parsed.toaccount,
-                    &amount,
-                    &parsed.token,
-                );
-            }
-
-            dealmongo::update_account_info(&parsed.fromaccount, &parsed.token, &new_amount_fromaccount);
-            dealmongo::update_account_info(&parsed.toaccount, &parsed.token, &new_amount_toaccount);
-
-
-            //每笔交易扣除0.1的手续费,eos侧数据同也做
-            let after_fee_amount_fromaccont = dealmongo::get_account_token_balance(&parsed.fromaccount, "VSC") - 0.1;
-            let after_fee_amount_toaccount = dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC") + 0.1;
-
-            dealmongo::update_account_info("2BCCA62F@gxy111111112", "VSC", &after_fee_amount_toaccount);
-            dealmongo::update_account_info(&parsed.fromaccount, "VSC", &after_fee_amount_fromaccont);
-            let fee_eos = 0.1f64;
-            transfer_by_eos(&parsed.fromaccount,"2BCCA62F@gxy111111112",&fee_eos,"VSC");
-
-
-            dealmongo::transferinsert(
+    let (head,from_pubkey,to_pubkey,token,amount) = getinfo_from_raw(raw_data);
+    let from_account = super::dealmongo::get_account_by_pubkey(&from_pubkey);
+    let to_account = super::dealmongo::get_account_by_pubkey(&to_pubkey);
+    let amount:f64 = amount.parse().unwrap();
+   let headyu = &head;
+   let mut result_issuetoken = "".to_string();
+    match headyu {
+	headyu if headyu == "issuetoken" => {
+		result_issuetoken = deal_issuetoken(&from_account,&to_account,&token,&amount);
+	},
+	headyu if headyu == "transfer"  => deal_transfer(&from_account,&to_account,&token,&amount),
+	_ => return "head must be transfer or issuetoken".to_string(),
+    }
+    // let txid = get_txid(from_account,to_account,token,amount);
+/*
+	 super::dealmongo::transferinsert(
                 &txid,
-                &parsed.fromaccount,
-                &parsed.toaccount,
+                fromaccount,
+                toaccount,
                 &amount,
-                &parsed.token,
+                token,
             );
-
-
-        txid
-    */
+*/
     "sss".to_string()
 }
 
