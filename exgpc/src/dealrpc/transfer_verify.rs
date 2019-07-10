@@ -4,6 +4,9 @@ use ring::{
     rand::SecureRandom,
     signature::{self, KeyPair},
 };
+enum Error {
+    InvalidSignature,
+}
 pub fn json_to_bin(head:&str,fromaccount:&str,toaccount:&str,token:&str,amount:&f64) -> String{
 	let from_pubkey = super::dealmongo::get_pubkey_by_account(fromaccount);
 	let to_pubkey = super::dealmongo::get_pubkey_by_account(toaccount);
@@ -79,7 +82,7 @@ fn serialize(head:&str,from_pubkey:&str,to_pubkey:&str,token:&str,amount:& str) 
 		bytes.append(&mut amount_bytes);
 		bytes.append(&mut splite);
 
-	println!("bytes==={:X?}==",bytes);
+	println!("RAWbytes==={:X?}==",bytes);
 	
 
 	let bin = bytes_to_string(&bytes); 
@@ -113,13 +116,14 @@ pub fn sign_transaction(prikey:&str,rawdata:&str) -> String{
 	    println!("{:?}",pkcs8_bytes);
 
 	
-	println!("sig_data={:?}==={}==",pkcs8_bytes,rawdata);
+	println!("pkcs8_bytes={:?}==={}==",pkcs8_bytes,rawdata);
 
 	 let key_pair =
-            signature::Ed25519KeyPair::from_pkcs8(untrusted::Input::from(pkcs8_bytes.as_ref()))
+            signature::Ed25519KeyPair::from_pkcs8(untrusted::Input::from(&pkcs8_bytes))
                 .unwrap();
 
 	let message = rawdata.to_string().into_bytes();
+println!("message={:?}",message);
         let sig_data = key_pair.sign(&message);
 	println!("sig_data==={:?}",sig_data.as_ref());
 
@@ -144,10 +148,8 @@ pub fn deserialize(rawdata:&str) -> Vec<u8>{
 	   
 	   if let Ok(tmp3) = u8::from_str_radix(&tmp2,16){
 		
-	   println!("str={},bytes={}",tmp2,tmp3);
 	   	bytes.push(tmp3);
 	   }
-		
             i += 2;
         }
 	println!("kkkkk{:?}",bytes);
@@ -155,16 +157,51 @@ pub fn deserialize(rawdata:&str) -> Vec<u8>{
       
 }
 
-fn verify_sign(sign_data:&str,raw_data:&str){
-	  
-	let message = deserialize(raw_data);
-	let peer_public_key_bytes = deserialize(raw_data);
+fn analy_rawdata(data:&str) -> Vec<u8>{
+	let mut bytes:Vec<u8> =Vec::new();
+//"41" -> 41
+	let mut serialize_data = deserialize(data);
+//41 -> 65 ->  "A"
+	println!("analy_rawdata======{:?}",serialize_data);
+	let outstr = std::str::from_utf8_mut(&mut serialize_data).unwrap();
+//"A" ->A -> 15
+
+	println!("outstr======{:?}",outstr);
+
+	let bytes = deserialize(&outstr);
+	bytes
+}
+
+fn verify_sign(sign_data:&str,raw_data:&str) -> Result<(), Error>{
+	
+	let mut v: Vec<&str> = raw_data.split("000000").collect();	  
+	v.reverse();
+	let mut pubkeystr = "".to_string();
+	v.pop();
+	v.pop();
+	if let Some(tmp) = v.pop(){
+		pubkeystr = tmp.to_string();	
+	}
+	println!("pubkeystr=={}",pubkeystr);//这是对应16进制的值，并不是真正的pubkey，还要计算出对应的asicc码,该asicc、码是真实公钥的字符串形式
+
+	let peer_public_key_bytes = analy_rawdata(&pubkeystr);
+
+	println!("ss222222222");
+	let message = raw_data.to_string().into_bytes();
+
+	println!("ss222222222");
 	let sig_bytes = deserialize(sign_data);
+
+	println!("peer_public_key_bytes={:?}",peer_public_key_bytes);
 	println!("message={:?}===sig_bytes={:?}",message,sig_bytes);	
-	  let peer_public_key = untrusted::Input::from(&peer_public_key_bytes);	
+	let peer_public_key = untrusted::Input::from(&peer_public_key_bytes);	
+
 	  let msg = untrusted::Input::from(&message);
+	println!("ss222222222");
           let sig = untrusted::Input::from(&sig_bytes);
-	signature::verify(&signature::ED25519, peer_public_key, msg, sig).unwrap();
+
+	println!("ss222222222");
+	signature::verify(&signature::ED25519, peer_public_key, msg, sig).map_err(|_| Error::InvalidSignature)
 }
 
 
@@ -204,7 +241,10 @@ fn get_txid() -> String{
 */
 pub fn push_transaction(sign_data:&str,raw_data:&str) -> String{
 
-	verify_sign(sign_data,raw_data);
+	match verify_sign(sign_data,raw_data) {
+	  Ok(_) => println!("verify_sign ok"),
+	  Err(err) => println!("verify_sign fail"),
+	}
 /*
 	let txid = "0".to_string();
 

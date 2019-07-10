@@ -680,6 +680,13 @@ pub fn registmethod() {
         // Verify the signature of the message using the public key. Normally the
         // verifier of the message would parse the inputs to `signature::verify`
         // out of the protocol message(s) sent by the signer.
+
+	
+	println!("sig={:?}",sig_bytes);
+	println!("peer_private_key_bytes={:?}",peer_private_key_bytes);
+	println!("peer_public_key_bytes={:?}",peer_public_key_bytes);
+	println!("MESSAGE={:?}",MESSAGE);
+
         let peer_public_key = untrusted::Input::from(peer_public_key_bytes);
         let msg = untrusted::Input::from(MESSAGE);
         let sig = untrusted::Input::from(sig_bytes);
@@ -687,13 +694,19 @@ pub fn registmethod() {
         println!("public={:?}", peer_public_key_bytes);
 
         println!("private--sacalr={:?}", peer_private_key_bytes);
-        let mut i = 0;
         let _m = 0;
         let mut publish_key = "".to_string();
         let mut private_key = "".to_string();
 
+
+	let mut i = 0;
         while i < peer_public_key_bytes.len() {
-            let tmp = format!("{:X}", peer_public_key_bytes[i]);
+	 let mut tmp = "".to_string();
+	    if(peer_public_key_bytes[i] < 16){
+            tmp = format!("0{:X}",peer_public_key_bytes[i]);
+	   }else{
+            tmp = format!("{:X}",peer_public_key_bytes[i]);
+	   }
             publish_key += &tmp;
             i += 1;
         }
