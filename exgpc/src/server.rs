@@ -4,14 +4,14 @@ extern crate jsonrpc_client_core;
 extern crate jsonrpc_client_http;
 #[macro_use]
 extern crate slog;
-extern crate slog_term;
 extern crate slog_async;
+extern crate slog_term;
 
 #[macro_use]
 extern crate lazy_static;
 
-use std::fs::OpenOptions;
 use slog::Drain;
+use std::fs::OpenOptions;
 /**
 lazy_static!{
 
@@ -29,7 +29,7 @@ lazy_static!{
     let drain = slog_async::Async::new(drain).build().fuse();
 
     let _log = slog::Logger::root(drain, o!());
-	_log
+    _log
     };
 }
 **/

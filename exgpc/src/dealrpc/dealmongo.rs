@@ -121,8 +121,7 @@ pub fn get_transaction_info(txid: &str) -> Vec<TransferInfo> {
     transfer
 }
 
-
-pub fn get_account_by_pubkey(pubkey: &str) -> String{
+pub fn get_account_by_pubkey(pubkey: &str) -> String {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
@@ -148,9 +147,7 @@ pub fn get_account_by_pubkey(pubkey: &str) -> String{
     account
 }
 
-
-
-pub fn get_pubkey_by_account(account: &str) -> String{
+pub fn get_pubkey_by_account(account: &str) -> String {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
@@ -160,7 +157,7 @@ pub fn get_pubkey_by_account(account: &str) -> String{
         "address": account,
     };
 
-   println!("pubkey={}",account);
+    println!("pubkey={}", account);
     let cursor = coll
         .find(Some(doc.clone()), None)
         .ok()
@@ -175,10 +172,9 @@ pub fn get_pubkey_by_account(account: &str) -> String{
             }
         }
     }
-   println!("pubkey={}",pubkey);
+    println!("pubkey={}", pubkey);
     pubkey
 }
-
 
 pub fn get_account_token_balance(account: &str, token: &str) -> f64 {
     let client =
