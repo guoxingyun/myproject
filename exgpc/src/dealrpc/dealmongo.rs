@@ -7,7 +7,7 @@ use mongodb::db::ThreadedDatabase;
 use mongodb::{bson, doc, Bson};
 use mongodb::{Client, ThreadedClient};
 
-pub fn transferinsert(txid: &str, fromAccount: &str, toAccount: &str, amount: &f64, token: &str) {
+pub fn transferinsert(blockheight:&str,blockhash:&str,txid: &str, fromAccount: &str, toAccount: &str, amount: &f64, token: &str) {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
@@ -16,6 +16,8 @@ pub fn transferinsert(txid: &str, fromAccount: &str, toAccount: &str, amount: &f
     let amount_clone = amount.clone();
 
     let doc = doc! {
+	"blockheight": blockheight,
+	"blockhash": blockhash,
         "fromAccount": fromAccount,
         "toAccount": toAccount,
     "amount":amount_clone,
@@ -44,6 +46,80 @@ pub fn transferinsert(txid: &str, fromAccount: &str, toAccount: &str, amount: &f
         None => panic!("Server returned no results!"),
     }
 }
+
+
+pub fn get_block (blockhash:&str) -> Vec<(String,String,String,String,String,String,String)> {
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("transfer");
+
+    let doc = doc! {
+	"blockhash": blockhash,
+    };
+
+
+
+
+    let cursor = coll
+        .find(Some(doc.clone()), None)
+        .ok()
+        .expect("Failed to execute find.");
+
+    let _details = "".to_string();
+    let mut data = Vec::new();
+
+    for result in cursor {
+        let mut details2 = (
+           "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+        );
+
+        if let Ok(item) = result {
+            if let Some(&Bson::String(ref fromAccount)) = item.get("blockheight") {
+                let data = format!("fromAccount: {}", fromAccount);
+                details2.0 = data.to_string();
+            }
+	    if let Some(&Bson::String(ref fromAccount)) = item.get("blockhash") {
+                let data = format!("fromAccount: {}", fromAccount);
+                details2.1 = data.to_string();
+            }
+
+            if let Some(&Bson::String(ref fromAccount)) = item.get("fromAccount") {
+                let data = format!("fromAccount: {}", fromAccount);
+                details2.2 = data.to_string();
+            }
+            if let Some(&Bson::String(ref toAccount)) = item.get("toAccount") {
+                let data = format!("toAccount: {}", toAccount);
+                details2.3 = data.to_string();
+            }
+            if let Some(&Bson::FloatingPoint(ref amount)) = item.get("amount") {
+                let data = format!("amount: {}", amount);
+                details2.4 = data.to_string();
+            }
+            if let Some(&Bson::String(ref token)) = item.get("token") {
+                let data = format!("token: {}", token);
+                details2.5 = data.to_string();
+            }
+            if let Some(&Bson::String(ref txid)) = item.get("txid") {
+                let data = format!("txid: {}", txid);
+                details2.6 = data.to_string();
+            }
+        }
+
+        println!("==============={:?}", details2);
+        data.push(details2);
+    }
+    data
+}
+
+
+
 
 fn account_send_receive(doc: &mongodb::ordered::OrderedDocument) -> Vec<TransferInfo> {
     let client =

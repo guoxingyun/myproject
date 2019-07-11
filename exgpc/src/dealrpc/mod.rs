@@ -86,6 +86,13 @@ struct DataInfo {
 }
 
 #[derive(Deserialize, Debug)]
+struct BlockHash {
+    hash: String, //issue_token,transfer
+}
+
+
+
+#[derive(Deserialize, Debug)]
 struct IssueTokenInfo {
     private_key: String,
     account: String,
@@ -430,6 +437,29 @@ fn get_height_hash() -> (String, String) {
     (height, head_hash)
 }
 
+
+fn get_block_by_eos(hash:&str) -> String {
+    let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
+    list_dir.arg("--url");
+    list_dir.arg("http://27.155.88.209:8888");
+    list_dir.arg("get");
+    list_dir.arg("block");
+    list_dir.arg(hash);
+    let getinfo = list_dir.output().expect("process failed to execute");
+    let mut one = getinfo.stdout;
+    one.reverse();
+
+    let mut all: String = "".to_string();
+    while let Some(top) = one.pop() {
+        all += &(top as char).to_string();
+    }
+    println!("blockinfo====={}", all);
+
+    all
+}
+
+
+
 pub fn registmethod() {
     let mut io = IoHandler::default();
 
@@ -517,10 +547,32 @@ pub fn registmethod() {
         }
         Ok(Value::String(return_data))
     });
+	
+  //1、getblock的时候mongo有就有返回，没有就去eos拿，拿到就返回高度hash交易为空，拿不到就不存在
+    io.add_method("get_block", |_params: Params| {
+
+        let parsed: BlockHash = _params.parse().unwrap();
+        let mut blockinfo = dealmongo::get_block(&parsed.hash);
+	let mut result = "".to_string();	
+	if blockinfo.len() == 0{
+		println!("mongo cannt find this hash");
+                if get_block_by_eos(&parsed.hash).len() == 0{
+			result = "Invalid block ID".to_string();	
+		}else{
+			result = "[]".to_string();	
+		}
+	}else{
+           result = format!("{:?}",blockinfo);
+	}
+
+	
+        Ok(Value::String(result))
+    });
+
 
     io.add_method("get_info", |_| {
         let (height, hash) = get_height_hash();
-        let all = format!("--height={}--hash==={}", height, hash);
+        let all = format!("vscid:cf057bbfb72640471fd910bcb67639c22d1f,version:V1.0.2,height:{},headhash:{}", height, hash);
         Ok(Value::String(all))
     });
 
@@ -625,7 +677,10 @@ pub fn registmethod() {
             "VSC",
         );
 
+	let (block_height,block_hash) = get_height_hash();
         dealmongo::transferinsert(
+	    &block_height,
+	    &block_hash,
             &txid,
             &parsed.fromaccount,
             &parsed.toaccount,

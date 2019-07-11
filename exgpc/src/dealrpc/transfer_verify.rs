@@ -386,8 +386,10 @@ pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
 	},
 	headyu if headyu == "transfer"  => {
 		deal_transfer(&from_account,&to_account,&token,&amount);
-		 let txid = get_txid(&from_account,&to_account,&token,&amount);
-   		super::dealmongo::transferinsert(&txid,&from_account,&to_account,&amount,&token);
+		let txid = get_txid(&from_account,&to_account,&token,&amount);
+		let (block_height,block_hash) = super::get_height_hash();
+		
+   		super::dealmongo::transferinsert(&block_height,&block_hash,&txid,&from_account,&to_account,&amount,&token);
 		result = txid;
 	},
 	_ => return "head must be transfer or issuetoken".to_string(),
