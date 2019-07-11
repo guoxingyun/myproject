@@ -7,7 +7,15 @@ use mongodb::db::ThreadedDatabase;
 use mongodb::{bson, doc, Bson};
 use mongodb::{Client, ThreadedClient};
 
-pub fn transferinsert(blockheight:&str,blockhash:&str,txid: &str, fromAccount: &str, toAccount: &str, amount: &f64, token: &str) {
+pub fn transferinsert(
+    blockheight: &str,
+    blockhash: &str,
+    txid: &str,
+    fromAccount: &str,
+    toAccount: &str,
+    amount: &f64,
+    token: &str,
+) {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
@@ -16,8 +24,8 @@ pub fn transferinsert(blockheight:&str,blockhash:&str,txid: &str, fromAccount: &
     let amount_clone = amount.clone();
 
     let doc = doc! {
-	"blockheight": blockheight,
-	"blockhash": blockhash,
+    "blockheight": blockheight,
+    "blockhash": blockhash,
         "fromAccount": fromAccount,
         "toAccount": toAccount,
     "amount":amount_clone,
@@ -47,19 +55,15 @@ pub fn transferinsert(blockheight:&str,blockhash:&str,txid: &str, fromAccount: &
     }
 }
 
-
-pub fn get_block (blockhash:&str) -> Vec<(String,String,String,String,String,String,String)> {
+pub fn get_block(blockhash: &str) -> Vec<(String, String, String, String, String, String, String)> {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
     let coll = client.db("exgpc").collection("transfer");
 
     let doc = doc! {
-	"blockhash": blockhash,
+    "blockhash": blockhash,
     };
-
-
-
 
     let cursor = coll
         .find(Some(doc.clone()), None)
@@ -71,7 +75,7 @@ pub fn get_block (blockhash:&str) -> Vec<(String,String,String,String,String,Str
 
     for result in cursor {
         let mut details2 = (
-           "".to_string(),
+            "".to_string(),
             "".to_string(),
             "".to_string(),
             "".to_string(),
@@ -85,7 +89,7 @@ pub fn get_block (blockhash:&str) -> Vec<(String,String,String,String,String,Str
                 let data = format!("fromAccount: {}", fromAccount);
                 details2.0 = data.to_string();
             }
-	    if let Some(&Bson::String(ref fromAccount)) = item.get("blockhash") {
+            if let Some(&Bson::String(ref fromAccount)) = item.get("blockhash") {
                 let data = format!("fromAccount: {}", fromAccount);
                 details2.1 = data.to_string();
             }
@@ -117,9 +121,6 @@ pub fn get_block (blockhash:&str) -> Vec<(String,String,String,String,String,Str
     }
     data
 }
-
-
-
 
 fn account_send_receive(doc: &mongodb::ordered::OrderedDocument) -> Vec<TransferInfo> {
     let client =
@@ -368,7 +369,7 @@ pub fn update_key_info(private_key: &str, publish_key: &str, address: &str) {
         "private_key": private_key,
         "publish_key": publish_key,
     "address":address,
-	"headhash":"1111111111111111111111111111111111111111111111111111111111111111" //新建账户初始化的headhash
+    "headhash":"1111111111111111111111111111111111111111111111111111111111111111" //新建账户初始化的headhash
     };
 
     coll.insert_one(doc.clone(), None)
@@ -376,23 +377,21 @@ pub fn update_key_info(private_key: &str, publish_key: &str, address: &str) {
         .expect("Failed to insert document.");
 }
 
-
-
-pub fn update_headhash(address: &str,headhash:&str) {
+pub fn update_headhash(address: &str, headhash: &str) {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
     let coll = client.db("exgpc").collection("key_info");
 
     let doc_filter = doc! {
-    	"address":address,
+        "address":address,
     };
     let doc_update = doc! { "$set": {
-           "headhash":headhash,}
-        };
+       "headhash":headhash,}
+    };
 
-    coll.update_one(doc_filter, doc_update, None).expect("Failed to update document.");
-
+    coll.update_one(doc_filter, doc_update, None)
+        .expect("Failed to update document.");
 }
 
 pub fn get_headhash(address: &str) -> String {
@@ -422,11 +421,6 @@ pub fn get_headhash(address: &str) -> String {
 
     details
 }
-
-
-
-
-
 
 pub fn get_private_key(address: &str) -> String {
     let client =

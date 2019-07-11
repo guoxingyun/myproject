@@ -4,7 +4,7 @@ extern crate ring;
 //extern crate jsonrpc_client_http;
 
 use crate::slog::Drain;
-use jsonrpc_client_http::HttpTransport;
+
 use std::fs::OpenOptions;
 
 lazy_static! {
@@ -42,7 +42,6 @@ use serde::Deserialize;
 
 use std::process::Command;
 
-use std::mem;
 use std::ops::Mul;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -89,8 +88,6 @@ struct DataInfo {
 struct BlockHash {
     hash: String, //issue_token,transfer
 }
-
-
 
 #[derive(Deserialize, Debug)]
 struct IssueTokenInfo {
@@ -437,8 +434,7 @@ fn get_height_hash() -> (String, String) {
     (height, head_hash)
 }
 
-
-fn get_block_by_eos(hash:&str) -> String {
+fn get_block_by_eos(hash: &str) -> String {
     let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
     list_dir.arg("--url");
     list_dir.arg("http://27.155.88.209:8888");
@@ -457,8 +453,6 @@ fn get_block_by_eos(hash:&str) -> String {
 
     all
 }
-
-
 
 pub fn registmethod() {
     let mut io = IoHandler::default();
@@ -547,32 +541,32 @@ pub fn registmethod() {
         }
         Ok(Value::String(return_data))
     });
-	
-  //1、getblock的时候mongo有就有返回，没有就去eos拿，拿到就返回高度hash交易为空，拿不到就不存在
+
+    //1、getblock的时候mongo有就有返回，没有就去eos拿，拿到就返回高度hash交易为空，拿不到就不存在
     io.add_method("get_block", |_params: Params| {
-
         let parsed: BlockHash = _params.parse().unwrap();
-        let mut blockinfo = dealmongo::get_block(&parsed.hash);
-	let mut result = "".to_string();	
-	if blockinfo.len() == 0{
-		println!("mongo cannt find this hash");
-                if get_block_by_eos(&parsed.hash).len() == 0{
-			result = "Invalid block ID".to_string();	
-		}else{
-			result = "[]".to_string();	
-		}
-	}else{
-           result = format!("{:?}",blockinfo);
-	}
+        let blockinfo = dealmongo::get_block(&parsed.hash);
+        let mut result = "".to_string();
+        if blockinfo.len() == 0 {
+            println!("mongo cannt find this hash");
+            if get_block_by_eos(&parsed.hash).len() == 0 {
+                result = "Invalid block ID".to_string();
+            } else {
+                result = "[]".to_string();
+            }
+        } else {
+            result = format!("{:?}", blockinfo);
+        }
 
-	
         Ok(Value::String(result))
     });
 
-
     io.add_method("get_info", |_| {
         let (height, hash) = get_height_hash();
-        let all = format!("vscid:cf057bbfb72640471fd910bcb67639c22d1f,version:V1.0.2,height:{},headhash:{}", height, hash);
+        let all = format!(
+            "vscid:cf057bbfb72640471fd910bcb67639c22d1f,version:V1.0.2,height:{},headhash:{}",
+            height, hash
+        );
         Ok(Value::String(all))
     });
 
@@ -677,18 +671,18 @@ pub fn registmethod() {
             "VSC",
         );
 
-	let (block_height,block_hash) = get_height_hash();
+        let (block_height, block_hash) = get_height_hash();
         dealmongo::transferinsert(
-	    &block_height,
-	    &block_hash,
+            &block_height,
+            &block_hash,
             &txid,
             &parsed.fromaccount,
             &parsed.toaccount,
             &amount,
             &parsed.token,
         );
-	
-        dealmongo::update_headhash(&parsed.fromaccount,&txid);
+
+        dealmongo::update_headhash(&parsed.fromaccount, &txid);
 
         Ok(Value::String(txid))
     });
@@ -744,7 +738,7 @@ pub fn registmethod() {
         let mut i = 0;
         while i < peer_public_key_bytes.len() {
             let mut tmp = "".to_string();
-            if (peer_public_key_bytes[i] < 16) {
+            if peer_public_key_bytes[i] < 16 {
                 tmp = format!("0{:X}", peer_public_key_bytes[i]);
             } else {
                 tmp = format!("{:X}", peer_public_key_bytes[i]);
@@ -756,7 +750,7 @@ pub fn registmethod() {
         let mut i = 0;
         while i < peer_private_key_bytes.len() {
             let mut tmp = "".to_string();
-            if (peer_private_key_bytes[i] < 16) {
+            if peer_private_key_bytes[i] < 16 {
                 tmp = format!("0{:X}", peer_private_key_bytes[i]);
             } else {
                 tmp = format!("{:X}", peer_private_key_bytes[i]);
@@ -780,11 +774,13 @@ pub fn registmethod() {
         let keypairs = format!("address={},private={}", address, private_key);
 
         signature::verify(&signature::ED25519, peer_public_key, msg, sig).unwrap();
-	
-	//考虑极低概率前八位hash碰撞的情况
-	if dealmongo::get_pubkey_by_account(&address).len() != 0{
-	    return Ok(Value::String("unknown error! please test again".to_string()));
-	}
+
+        //考虑极低概率前八位hash碰撞的情况
+        if dealmongo::get_pubkey_by_account(&address).len() != 0 {
+            return Ok(Value::String(
+                "unknown error! please test again".to_string(),
+            ));
+        }
 
         dealmongo::update_key_info(&private_key, &pubkey, &address);
 

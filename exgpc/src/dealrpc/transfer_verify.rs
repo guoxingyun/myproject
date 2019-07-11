@@ -1,9 +1,5 @@
 //用公钥替换地址
-use ring::{
-    digest, rand,
-    rand::SecureRandom,
-    signature::{self, KeyPair},
-};
+use ring::{digest, rand, rand::SecureRandom, signature};
 
 enum Error {
     InvalidSignature,
@@ -24,7 +20,7 @@ pub fn json_to_bin(
     println!("b64----{}\n\n\n", amountstr);
     let amountf64: f64 = amountstr.to_string().parse().unwrap();
     println!("b64parse----{}", amountf64);
-    let bin = serialize(head, &from_pubkey, &to_pubkey, token, &amountstr,&headhash);
+    let bin = serialize(head, &from_pubkey, &to_pubkey, token, &amountstr, &headhash);
     bin
 }
 
@@ -34,7 +30,7 @@ fn bytes_to_string(bytes: &Vec<u8>) -> String {
     while i < bytes.len() {
         let mut tmp = "".to_string();
 
-        if (bytes[i] < 16) {
+        if bytes[i] < 16 {
             tmp = format!("0{:X}", bytes[i]);
         } else {
             tmp = format!("{:X}", bytes[i]);
@@ -51,7 +47,14 @@ fn string_to_bytes() ->{
 
 }
 */
-fn serialize(head: &str, from_pubkey: &str, to_pubkey: &str, token: &str, amount: &str,headhash:&str) -> String {
+fn serialize(
+    head: &str,
+    from_pubkey: &str,
+    to_pubkey: &str,
+    token: &str,
+    amount: &str,
+    headhash: &str,
+) -> String {
     println!("b64----");
     let mut bytes = [0, 0, 0].to_vec();
     let mut splite = [0, 0, 0].to_vec();
@@ -69,8 +72,6 @@ fn serialize(head: &str, from_pubkey: &str, to_pubkey: &str, token: &str, amount
 
     let mut headhash_bytes = headhash.to_string().into_bytes();
     println!("headhash={}", headhash);
-
-
 
     println!("b64----{:?}", bytes);
     bytes.append(&mut head_bytes);
@@ -96,8 +97,6 @@ fn serialize(head: &str, from_pubkey: &str, to_pubkey: &str, token: &str, amount
     let mut splite = [0, 0, 0].to_vec();
     bytes.append(&mut headhash_bytes);
     bytes.append(&mut splite);
-
-
 
     println!("RAWbytes==={:X?}==", bytes);
 
@@ -163,7 +162,7 @@ pub fn deserialize(rawdata: &str) -> Vec<u8> {
 
 //目前只是给延签的时候获取公钥用，后续合并
 fn analy_rawdata(data: &str) -> Vec<u8> {
-    let mut bytes: Vec<u8> = Vec::new();
+    let _bytes: Vec<u8> = Vec::new();
     //"41" -> 41
     let mut serialize_data = deserialize(data);
     //41 -> 65 ->  "A"
@@ -210,7 +209,7 @@ fn verify_sign(sign_data: &str, raw_data: &str) -> Result<(), Error> {
         .map_err(|_| Error::InvalidSignature)
 }
 
-pub fn get_txid(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) -> String {
+pub fn get_txid(_fromaccount: &str, _toaccount: &str, _token: &str, _amount: &f64) -> String {
     let start = SystemTime::now();
     let since_the_epoch = start
         .duration_since(UNIX_EPOCH)
@@ -241,7 +240,7 @@ pub fn get_txid(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) -
     txid
 }
 
-fn getinfo_from_raw(raw_data: &str) -> (String,String, String, String, String,String) {
+fn getinfo_from_raw(raw_data: &str) -> (String, String, String, String, String, String) {
     let mut v: Vec<&str> = raw_data.split("000000").collect();
     v.reverse();
     let mut head = "".to_string();
@@ -291,137 +290,126 @@ fn getinfo_from_raw(raw_data: &str) -> (String,String, String, String, String,St
         headhash = outstr.to_string();
     }
 
-
-
     println!(
         "head=={}\n,frompubkey={}\n,to_pubkey={}\n,token={}\n,amount={}\n,headhash={}",
-        head, from_pubkey, to_pubkey, token, amount,headhash
+        head, from_pubkey, to_pubkey, token, amount, headhash
     );
-    (head,from_pubkey,to_pubkey,token,amount,headhash)
+    (head, from_pubkey, to_pubkey, token, amount, headhash)
 }
 
-fn deal_issuetoken(fromaccount:&str,toaccount:&str,token:&str,amount:&f64) -> String{
+fn deal_issuetoken(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) -> String {
+    let private_key = super::dealmongo::get_private_key(fromaccount);
+    let amount = super::decimal_f64(amount);
+    let issue_valid = super::valid_rule_issue_token(&private_key, fromaccount, token, &amount);
+    println!("issue_valid={}", issue_valid);
+    if issue_valid == true {
+        crate::dealrpc::issue_by_eos(toaccount, token, &amount);
 
-	let private_key = super::dealmongo::get_private_key(fromaccount);
-	  let amount = super::decimal_f64(amount);
-        let issue_valid =
-            super::valid_rule_issue_token(&private_key,fromaccount,token, &amount);
-        println!("issue_valid={}", issue_valid);
-        if issue_valid == true {
-            crate::dealrpc::issue_by_eos(toaccount, token, &amount);
+        super::dealmongo::update_account_info(toaccount, token, &amount);
+        super::dealmongo::update_token_info(toaccount, token, &amount);
 
-            super::dealmongo::update_account_info(toaccount, token, &amount);
-            super::dealmongo::update_token_info(toaccount, token, &amount);
-
-          "issue token OK".to_string()
-        } else {
-           "issue token failed".to_string()
-        }
-
+        "issue token OK".to_string()
+    } else {
+        "issue token failed".to_string()
+    }
 }
 
-fn deal_transfer(fromaccount:&str,toaccount:&str,token:&str,amount:&f64){
-        let txid = "0".to_string();
+fn deal_transfer(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) {
+    let _txid = "0".to_string();
 
-        let amount = super::decimal_f64(amount);
-	let private_key = super::dealmongo::get_private_key(fromaccount);
-		
-	//其实之前签名校验的时候已经判断了，这里没必要，但为了复用之前的接口
-            let valid_transfer = super::valid_rule_transfer(   
-                &private_key,
-                fromaccount,
-                toaccount,
-                token,
-                &amount,
-            );
-      //      if valid_transfer == false {
-                //return Ok(Value::String("params is not right".to_string()));
-	//	return
-          //  }
-	assert!(valid_transfer);
+    let amount = super::decimal_f64(amount);
+    let private_key = super::dealmongo::get_private_key(fromaccount);
 
-
+    //其实之前签名校验的时候已经判断了，这里没必要，但为了复用之前的接口
+    let valid_transfer =
+        super::valid_rule_transfer(&private_key, fromaccount, toaccount, token, &amount);
+    //      if valid_transfer == false {
+    //return Ok(Value::String("params is not right".to_string()));
+    //	return
+    //  }
+    assert!(valid_transfer);
 
     let new_amount_fromaccount =
-                super::dealmongo::get_account_token_balance(fromaccount, token)
-                    - &amount;
+        super::dealmongo::get_account_token_balance(fromaccount, token) - &amount;
 
-            let new_amount_toaccount =
-                &amount + super::dealmongo::get_account_token_balance(toaccount,token);
+    let new_amount_toaccount =
+        &amount + super::dealmongo::get_account_token_balance(toaccount, token);
 
-            println!(
-                "--{}---{}--{}--",
-                super::dealmongo::get_account_token_balance(fromaccount, token),
-                amount,
-                super::dealmongo::get_account_token_balance(toaccount, token)
-            );
+    println!(
+        "--{}---{}--{}--",
+        super::dealmongo::get_account_token_balance(fromaccount, token),
+        amount,
+        super::dealmongo::get_account_token_balance(toaccount, token)
+    );
 
-            //机构不同得走eos通道，txid用自己得不用eos的
-            if super::get_official_from_account(fromaccount)
-                != super::get_official_from_account(toaccount)
-            {
-                super::transfer_by_eos(
-                    fromaccount,
-                    toaccount,
-                    &amount,
-                    token,
-                );
-            }
+    //机构不同得走eos通道，txid用自己得不用eos的
+    if super::get_official_from_account(fromaccount) != super::get_official_from_account(toaccount)
+    {
+        super::transfer_by_eos(fromaccount, toaccount, &amount, token);
+    }
 
-            super::dealmongo::update_account_info(fromaccount, token, &new_amount_fromaccount);
-           super::dealmongo::update_account_info(toaccount, token, &new_amount_toaccount);
+    super::dealmongo::update_account_info(fromaccount, token, &new_amount_fromaccount);
+    super::dealmongo::update_account_info(toaccount, token, &new_amount_toaccount);
 
+    //每笔交易扣除0.1的手续费,eos侧数据同也做
+    let after_fee_amount_fromaccont =
+        super::dealmongo::get_account_token_balance(fromaccount, "VSC") - 0.1;
+    let after_fee_amount_toaccount =
+        super::dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC") + 0.1;
 
-            //每笔交易扣除0.1的手续费,eos侧数据同也做
-            let after_fee_amount_fromaccont = super::dealmongo::get_account_token_balance(fromaccount, "VSC") - 0.1;
-            let after_fee_amount_toaccount = super::dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC") + 0.1;
-
-            super::dealmongo::update_account_info("2BCCA62F@gxy111111112", "VSC", &after_fee_amount_toaccount);
-            super::dealmongo::update_account_info(fromaccount, "VSC", &after_fee_amount_fromaccont);
-            let fee_eos = 0.1f64;
-            super::transfer_by_eos(fromaccount,"2BCCA62F@gxy111111112",&fee_eos,"VSC");
-
-
-           
+    super::dealmongo::update_account_info(
+        "2BCCA62F@gxy111111112",
+        "VSC",
+        &after_fee_amount_toaccount,
+    );
+    super::dealmongo::update_account_info(fromaccount, "VSC", &after_fee_amount_fromaccont);
+    let fee_eos = 0.1f64;
+    super::transfer_by_eos(fromaccount, "2BCCA62F@gxy111111112", &fee_eos, "VSC");
 }
-
 
 pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
     match verify_sign(sign_data, raw_data) {
         Ok(_) => println!("verify_sign ok"),
-        Err(err) => {
+        Err(_err) => {
             println!("verify_sign fail");
             return "verify_sign fail".to_string();
         }
     }
-    let (head,from_pubkey,to_pubkey,token,amount,headhash) = getinfo_from_raw(raw_data);
+    let (head, from_pubkey, to_pubkey, token, amount, headhash) = getinfo_from_raw(raw_data);
     let from_account = super::dealmongo::get_account_by_pubkey(&from_pubkey);
-    let current_head_hash =  super::dealmongo::get_headhash(&from_account);
-	if headhash != current_head_hash{
-	     return "headhash is diffrent,may be shuanghua".to_string();
-	}
-	
+    let current_head_hash = super::dealmongo::get_headhash(&from_account);
+    if headhash != current_head_hash {
+        return "headhash is diffrent,may be shuanghua".to_string();
+    }
 
     let to_account = super::dealmongo::get_account_by_pubkey(&to_pubkey);
-    let amount:f64 = amount.parse().unwrap();
-   let headyu = &head;
-   let mut result  = "".to_string();
+    let amount: f64 = amount.parse().unwrap();
+    let headyu = &head;
+    let mut result = "".to_string();
     match headyu {
-	headyu if headyu == "issuetoken" => {
-		result  = deal_issuetoken(&from_account,&to_account,&token,&amount);
-	},
-	headyu if headyu == "transfer"  => {
-		deal_transfer(&from_account,&to_account,&token,&amount);
-		let txid = get_txid(&from_account,&to_account,&token,&amount);
-		let (block_height,block_hash) = super::get_height_hash();
-		
-   		super::dealmongo::transferinsert(&block_height,&block_hash,&txid,&from_account,&to_account,&amount,&token);
-		super::dealmongo::update_headhash(&from_account,&txid);
-		result = txid;
-	},
-	_ => return "head must be transfer or issuetoken".to_string(),
+        headyu if headyu == "issuetoken" => {
+            result = deal_issuetoken(&from_account, &to_account, &token, &amount);
+        }
+        headyu if headyu == "transfer" => {
+            deal_transfer(&from_account, &to_account, &token, &amount);
+            let txid = get_txid(&from_account, &to_account, &token, &amount);
+            let (block_height, block_hash) = super::get_height_hash();
+
+            super::dealmongo::transferinsert(
+                &block_height,
+                &block_hash,
+                &txid,
+                &from_account,
+                &to_account,
+                &amount,
+                &token,
+            );
+            super::dealmongo::update_headhash(&from_account, &txid);
+            result = txid;
+        }
+        _ => return "head must be transfer or issuetoken".to_string(),
     }
-     result
+    result
 }
 
 /*

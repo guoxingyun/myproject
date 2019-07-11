@@ -10,8 +10,6 @@ extern crate slog_term;
 #[macro_use]
 extern crate lazy_static;
 
-use slog::Drain;
-use std::fs::OpenOptions;
 /**
 lazy_static!{
 
