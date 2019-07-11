@@ -368,12 +368,66 @@ pub fn update_key_info(private_key: &str, publish_key: &str, address: &str) {
         "private_key": private_key,
         "publish_key": publish_key,
     "address":address,
+	"headhash":"1111111111111111111111111111111111111111111111111111111111111111" //新建账户初始化的headhash
     };
 
     coll.insert_one(doc.clone(), None)
         .ok()
         .expect("Failed to insert document.");
 }
+
+
+
+pub fn update_headhash(address: &str,headhash:&str) {
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("key_info");
+
+    let doc_filter = doc! {
+    	"address":address,
+    };
+    let doc_update = doc! { "$set": {
+           "headhash":headhash,}
+        };
+
+    coll.update_one(doc_filter, doc_update, None).expect("Failed to update document.");
+
+}
+
+pub fn get_headhash(address: &str) -> String {
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("key_info");
+
+    let doc = doc! {
+        "address": address,
+    };
+
+    let cursor = coll
+        .find(Some(doc.clone()), None)
+        .ok()
+        .expect("Failed to execute find.");
+
+    let mut details = "".to_string();
+
+    for result in cursor {
+        if let Ok(item) = result {
+            if let Some(&Bson::String(ref headhash)) = item.get("headhash") {
+                details = headhash.to_string();
+            }
+        }
+    }
+
+    details
+}
+
+
+
+
+
+
 pub fn get_private_key(address: &str) -> String {
     let client =
         Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");

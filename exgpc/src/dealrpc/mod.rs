@@ -687,6 +687,8 @@ pub fn registmethod() {
             &amount,
             &parsed.token,
         );
+	
+        dealmongo::update_headhash(&parsed.fromaccount,&txid);
 
         Ok(Value::String(txid))
     });
@@ -778,6 +780,11 @@ pub fn registmethod() {
         let keypairs = format!("address={},private={}", address, private_key);
 
         signature::verify(&signature::ED25519, peer_public_key, msg, sig).unwrap();
+	
+	//考虑极低概率前八位hash碰撞的情况
+	if dealmongo::get_pubkey_by_account(&address).len() != 0{
+	    return Ok(Value::String("unknown error! please test again".to_string()));
+	}
 
         dealmongo::update_key_info(&private_key, &pubkey, &address);
 

@@ -20,10 +20,11 @@ pub fn json_to_bin(
     let from_pubkey = super::dealmongo::get_pubkey_by_account(fromaccount);
     let to_pubkey = super::dealmongo::get_pubkey_by_account(toaccount);
     let amountstr = amount.to_string();
+    let headhash = super::dealmongo::get_headhash(fromaccount);
     println!("b64----{}\n\n\n", amountstr);
     let amountf64: f64 = amountstr.to_string().parse().unwrap();
     println!("b64parse----{}", amountf64);
-    let bin = serialize(head, &from_pubkey, &to_pubkey, token, &amountstr);
+    let bin = serialize(head, &from_pubkey, &to_pubkey, token, &amountstr,&headhash);
     bin
 }
 
@@ -50,7 +51,7 @@ fn string_to_bytes() ->{
 
 }
 */
-fn serialize(head: &str, from_pubkey: &str, to_pubkey: &str, token: &str, amount: &str) -> String {
+fn serialize(head: &str, from_pubkey: &str, to_pubkey: &str, token: &str, amount: &str,headhash:&str) -> String {
     println!("b64----");
     let mut bytes = [0, 0, 0].to_vec();
     let mut splite = [0, 0, 0].to_vec();
@@ -65,6 +66,11 @@ fn serialize(head: &str, from_pubkey: &str, to_pubkey: &str, token: &str, amount
     println!("token={}", token);
     let mut amount_bytes = amount.to_string().into_bytes();
     println!("amount={}", amount);
+
+    let mut headhash_bytes = headhash.to_string().into_bytes();
+    println!("headhash={}", headhash);
+
+
 
     println!("b64----{:?}", bytes);
     bytes.append(&mut head_bytes);
@@ -87,6 +93,11 @@ fn serialize(head: &str, from_pubkey: &str, to_pubkey: &str, token: &str, amount
     println!("b64----{:?}", bytes);
     bytes.append(&mut amount_bytes);
     bytes.append(&mut splite);
+    let mut splite = [0, 0, 0].to_vec();
+    bytes.append(&mut headhash_bytes);
+    bytes.append(&mut splite);
+
+
 
     println!("RAWbytes==={:X?}==", bytes);
 
@@ -230,7 +241,7 @@ pub fn get_txid(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) -
     txid
 }
 
-fn getinfo_from_raw(raw_data: &str) -> (String,String, String, String, String) {
+fn getinfo_from_raw(raw_data: &str) -> (String,String, String, String, String,String) {
     let mut v: Vec<&str> = raw_data.split("000000").collect();
     v.reverse();
     let mut head = "".to_string();
@@ -238,6 +249,7 @@ fn getinfo_from_raw(raw_data: &str) -> (String,String, String, String, String) {
     let mut to_pubkey = "".to_string();
     let mut token = "".to_string();
     let mut amount = "".to_string();
+    let mut headhash = "".to_string();
     v.pop();
     if let Some(tmp) = v.pop() {
         let mut serialize_data = deserialize(tmp);
@@ -273,11 +285,19 @@ fn getinfo_from_raw(raw_data: &str) -> (String,String, String, String, String) {
         amount = outstr.to_string();
     }
 
+    if let Some(tmp) = v.pop() {
+        let mut serialize_data = deserialize(tmp);
+        let outstr = std::str::from_utf8_mut(&mut serialize_data).unwrap();
+        headhash = outstr.to_string();
+    }
+
+
+
     println!(
-        "head=={}\n,frompubkey={}\n,to_pubkey={}\n,token={}\n,amount={}\n",
-        head, from_pubkey, to_pubkey, token, amount
+        "head=={}\n,frompubkey={}\n,to_pubkey={}\n,token={}\n,amount={}\n,headhash={}",
+        head, from_pubkey, to_pubkey, token, amount,headhash
     );
-    (head,from_pubkey,to_pubkey,token,amount)
+    (head,from_pubkey,to_pubkey,token,amount,headhash)
 }
 
 fn deal_issuetoken(fromaccount:&str,toaccount:&str,token:&str,amount:&f64) -> String{
@@ -374,8 +394,14 @@ pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
             return "verify_sign fail".to_string();
         }
     }
-    let (head,from_pubkey,to_pubkey,token,amount) = getinfo_from_raw(raw_data);
+    let (head,from_pubkey,to_pubkey,token,amount,headhash) = getinfo_from_raw(raw_data);
     let from_account = super::dealmongo::get_account_by_pubkey(&from_pubkey);
+    let current_head_hash =  super::dealmongo::get_headhash(&from_account);
+	if headhash != current_head_hash{
+	     return "headhash is diffrent,may be shuanghua".to_string();
+	}
+	
+
     let to_account = super::dealmongo::get_account_by_pubkey(&to_pubkey);
     let amount:f64 = amount.parse().unwrap();
    let headyu = &head;
@@ -390,6 +416,7 @@ pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
 		let (block_height,block_hash) = super::get_height_hash();
 		
    		super::dealmongo::transferinsert(&block_height,&block_hash,&txid,&from_account,&to_account,&amount,&token);
+		super::dealmongo::update_headhash(&from_account,&txid);
 		result = txid;
 	},
 	_ => return "head must be transfer or issuetoken".to_string(),
