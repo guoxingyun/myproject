@@ -6,31 +6,6 @@ extern crate ring;
 use crate::slog::Drain;
 
 use std::fs::OpenOptions;
-
-lazy_static! {
-    static ref LOGGER: slog::Logger = {
-        let log_path = "/home/guoxingyun/myproject/exgpc/your_log_file_path.log";
-        let file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(log_path)
-            .unwrap();
-
-        let decorator = slog_term::PlainDecorator::new(file);
-        let drain = slog_term::FullFormat::new(decorator).build().fuse();
-        let drain = slog_async::Async::new(drain).build().fuse();
-
-        let _log = slog::Logger::root(drain, o!());
-        _log
-    };
-}
-
-jsonrpc_client!(pub struct FizzBuzzClient {
-    /// Returns the fizz-buzz string for the given number.
-    pub fn fizz_buzz(&mut self, number: u64) -> RpcRequest<String>;
-});
-
 use jsonrpc_http_server::jsonrpc_core::*;
 use jsonrpc_http_server::*;
 use ring::{
@@ -46,11 +21,9 @@ use std::ops::Mul;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 extern crate rust_decimal;
-//use std::str::FromStr;
 use rust_decimal::Decimal;
 
 use num::ToPrimitive;
-
 pub mod dealmongo;
 mod transfer_verify;
 
@@ -103,17 +76,17 @@ pub struct TransferInfo(String, String, String, String, String);
 #[derive(Debug, Clone)]
 pub struct AccountInfo(String, String, String);
 
-#[derive(Deserialize)]
+#[derive(Deserialize,Debug)]
 struct Account {
     account: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize,Debug)]
 struct Official {
     official: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize,Debug)]
 struct Transaction {
     txid: String,
 }
@@ -460,7 +433,7 @@ pub fn registmethod() {
     //let stringkk = num::FromPrimitive::from_f64(2224.0001f64).unwrap().to_string();
 
     io.add_method("say_hello", |_| {
-        info!(LOGGER, "printed {line_count} lines", line_count = 2);
+        info!(crate::LOGGER, "printed {line_count} lines", line_count = 2);
         //transfer_verify::deserialize();
 
         Ok(Value::String("hellossss".into()))
@@ -468,8 +441,10 @@ pub fn registmethod() {
     //离线签名考虑是发币还是交易做判断
 
     io.add_method("json_to_bin", |_params: Params| {
-        info!(LOGGER, "printed {line_count} lines", line_count = 2);
         let parsed: DataInfo = _params.parse().unwrap();
+	
+        info!(crate::LOGGER, "json_to_bin::{:?}",parsed);
+
         let bin = transfer_verify::json_to_bin(
             &parsed.head,
             &parsed.fromaccount,
@@ -482,18 +457,16 @@ pub fn registmethod() {
     });
 
     io.add_method("sigh_transaction", |_params: Params| {
-        info!(LOGGER, "printed {line_count} lines", line_count = 2);
-
         let parsed: Sig = _params.parse().unwrap();
+        info!(crate::LOGGER, "sigh_transaction::{:?}",parsed);
         let sigdata = transfer_verify::sign_transaction(&parsed.prikey, &parsed.raw);
 
         Ok(Value::String(sigdata))
     });
 
     io.add_method("push_transaction", |_params: Params| {
-        info!(LOGGER, "printed {line_count} lines", line_count = 2);
-
         let parsed: SigAndRaw = _params.parse().unwrap();
+        info!(crate::LOGGER, "push_transaction_transaction::{:?}",parsed);
         let result = transfer_verify::push_transaction(&parsed.sig, &parsed.raw);
 
         Ok(Value::String(result))
@@ -501,11 +474,12 @@ pub fn registmethod() {
 
     io.add_method("issue_token", |_params: Params| {
         let parsed: IssueTokenInfo = _params.parse().unwrap();
-
+        info!(crate::LOGGER, "issue_token::{:?}",parsed);
         let amount = decimal_f64(&parsed.amount);
         let issue_valid =
             valid_rule_issue_token(&parsed.private_key, &parsed.account, &parsed.token, &amount);
-        println!("issue_valid={}", issue_valid);
+        debug!(crate::LOGGER, "issue_token::issue_valid{}",issue_valid);
+
         if issue_valid == true {
             crate::dealrpc::issue_by_eos(&parsed.account, &parsed.token, &amount);
 
@@ -520,9 +494,8 @@ pub fn registmethod() {
 
     io.add_method("account_info", |_params: Params| {
         let parsed: Account = _params.parse().unwrap();
-
+        info!(crate::LOGGER, "account_info::{:?}",parsed);
         let mut data = dealmongo::get_account_info(&parsed.account);
-        println!("-----------------------{:?}", data);
         let mut return_data = "".to_string();
         while let Some(top) = data.pop() {
             let line = format!("{:?};", top);
@@ -533,6 +506,9 @@ pub fn registmethod() {
 
     io.add_method("get_transaction", |_params: Params| {
         let parsed: Transaction = _params.parse().unwrap();
+
+        info!(crate::LOGGER, "get_transaction::{:?}",parsed);
+
         let mut data = dealmongo::get_transaction_info(&parsed.txid);
         println!("-----------------------{:?}", data);
         let mut return_data = "".to_string();
@@ -545,6 +521,9 @@ pub fn registmethod() {
     //1、getblock的时候mongo有就有返回，没有就去eos拿，拿到就返回高度hash交易为空，拿不到就不存在
     io.add_method("get_block", |_params: Params| {
         let parsed: BlockHash = _params.parse().unwrap();
+
+        info!(crate::LOGGER, "get_block::{:?}",parsed);
+
         let blockinfo = dealmongo::get_block(&parsed.hash);
         let mut result = "".to_string();
         if blockinfo.len() == 0 {
@@ -572,11 +551,13 @@ pub fn registmethod() {
 
     io.add_method("account_history", |_params: Params| {
         let parsed: Account = _params.parse().unwrap();
+
+        info!(crate::LOGGER, "account_history::{:?}",parsed);
+
         let mut data = dealmongo::account_history(&parsed.account);
         let mut return_data = "".to_string();
         while let Some(top) = data.pop() {
             let line = format!("{:?};", top);
-            //	let line = format! ("{"{}","{}","{}","{}","{}"}",top.0,top.1,top.2,top.3,top.4);
             return_data += &line;
         }
 
@@ -585,6 +566,8 @@ pub fn registmethod() {
 
     io.add_method("transfer", |_params: Params| {
         let parsed: Transfer = _params.parse().unwrap();
+
+        info!(crate::LOGGER, "Transfer::{:?}",parsed);
 
         let amount = decimal_f64(&parsed.amount);
 
@@ -689,6 +672,7 @@ pub fn registmethod() {
 
     io.add_method("create_key", |_params: Params| {
         let parsed: Official = _params.parse().unwrap();
+        info!(crate::LOGGER, "create_key::{:?}",parsed);
 
         if dealmongo::find_official(&parsed.official) == false {
             return Ok(Value::String("official not exist".to_string()));

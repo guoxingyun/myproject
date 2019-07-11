@@ -6,19 +6,22 @@ extern crate jsonrpc_client_http;
 extern crate slog;
 extern crate slog_async;
 extern crate slog_term;
+use std::fs::OpenOptions;
+use crate::slog::Drain;
 
 #[macro_use]
 extern crate lazy_static;
 
-/**
-lazy_static!{
 
-   static ref LOGGER = {
+ use std::time::SystemTime;
+
+lazy_static!{
+   static ref LOGGER: slog::Logger  = {
    let log_path = "/home/guoxingyun/myproject/exgpc/your_log_file_path.log";
    let file = OpenOptions::new()
       .create(true)
       .write(true)
-      .truncate(true)
+      .truncate(false)
       .open(log_path)
       .unwrap();
 
@@ -29,10 +32,13 @@ lazy_static!{
     let _log = slog::Logger::root(drain, o!());
     _log
     };
+
 }
-**/
+
+use std::time::Instant;
 fn main() {
-    //    dealrpc::dealmongo::mongoinsert();
-    // let logger:'static = loginit();
+
+let now = Instant::now();
+   println!("iii{:?}",now);
     dealrpc::registmethod();
 }
