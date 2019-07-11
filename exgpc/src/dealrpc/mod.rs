@@ -470,9 +470,9 @@ pub fn registmethod() {
         info!(LOGGER, "printed {line_count} lines", line_count = 2);
 
         let parsed: SigAndRaw = _params.parse().unwrap();
-        let txid = transfer_verify::push_transaction(&parsed.sig, &parsed.raw);
+        let result = transfer_verify::push_transaction(&parsed.sig, &parsed.raw);
 
-        Ok(Value::String(txid))
+        Ok(Value::String(result))
     });
 
     io.add_method("issue_token", |_params: Params| {

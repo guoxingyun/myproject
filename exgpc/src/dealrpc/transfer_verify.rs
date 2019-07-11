@@ -379,25 +379,20 @@ pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
     let to_account = super::dealmongo::get_account_by_pubkey(&to_pubkey);
     let amount:f64 = amount.parse().unwrap();
    let headyu = &head;
-   let mut result_issuetoken = "".to_string();
+   let mut result  = "".to_string();
     match headyu {
 	headyu if headyu == "issuetoken" => {
-		result_issuetoken = deal_issuetoken(&from_account,&to_account,&token,&amount);
+		result  = deal_issuetoken(&from_account,&to_account,&token,&amount);
 	},
-	headyu if headyu == "transfer"  => deal_transfer(&from_account,&to_account,&token,&amount),
+	headyu if headyu == "transfer"  => {
+		deal_transfer(&from_account,&to_account,&token,&amount);
+		 let txid = get_txid(&from_account,&to_account,&token,&amount);
+   		super::dealmongo::transferinsert(&txid,&from_account,&to_account,&amount,&token);
+		result = txid;
+	},
 	_ => return "head must be transfer or issuetoken".to_string(),
     }
-    // let txid = get_txid(from_account,to_account,token,amount);
-/*
-	 super::dealmongo::transferinsert(
-                &txid,
-                fromaccount,
-                toaccount,
-                &amount,
-                token,
-            );
-*/
-    "sss".to_string()
+     result
 }
 
 /*
