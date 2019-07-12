@@ -116,7 +116,7 @@ pub fn get_block(blockhash: &str) -> Vec<(String, String, String, String, String
             }
         }
 
-        println!("==============={:?}", details2);
+        info!(crate::LOGGER,"get_block-->blockinfo=={:?}", details2);
         data.push(details2);
     }
     data
@@ -167,7 +167,7 @@ fn account_send_receive(doc: &mongodb::ordered::OrderedDocument) -> Vec<Transfer
             }
         }
 
-        println!("==============={:?}", details2);
+        info!(crate::LOGGER,"account_send_receive-->account-transferhistory={:?}", details2);
         data.push(details2);
     }
     data
@@ -234,7 +234,6 @@ pub fn get_pubkey_by_account(account: &str) -> String {
         "address": account,
     };
 
-    println!("pubkey={}", account);
     let cursor = coll
         .find(Some(doc.clone()), None)
         .ok()
@@ -249,7 +248,6 @@ pub fn get_pubkey_by_account(account: &str) -> String {
             }
         }
     }
-    println!("pubkey={}", pubkey);
     pubkey
 }
 
@@ -306,13 +304,11 @@ pub fn get_account_info(account: &str) -> Vec<AccountInfo> {
                 details2.0 = data.to_string();
             }
             if let Some(&Bson::String(ref token)) = item.get("token") {
-                println!("token: {}", token);
                 let data = format!("token: {}", token);
                 details2.1 = data.to_string();
             }
 
             if let Some(&Bson::FloatingPoint(ref amount)) = item.get("amount") {
-                println!("amount: {}", amount);
                 let data = format!("amount: {}", amount);
                 details2.2 = data.to_string();
             }
@@ -336,7 +332,6 @@ pub fn update_account_info(account: &str, token: &str, amount: &f64) {
     "token":token,
     };
     if get_account_token_balance(account, token) == 0.0 {
-        println!("ppp----{:?}", &doc);
         coll.insert_one(doc.clone(), None)
             .ok()
             .expect("Failed to insert document.");
@@ -353,7 +348,6 @@ pub fn update_account_info(account: &str, token: &str, amount: &f64) {
            "token":token,}
         };
 
-        println!("ppp----{:?}", &doc_filter);
         coll.update_one(doc_filter, doc_update, None)
             .expect("Failed to update document.");
     }
@@ -479,7 +473,7 @@ pub fn get_token_info(token_name: &str) -> bool {
     if details == "".to_string() {
         valid = false;
     }
-    println!("valid={}", valid);
+    debug!(crate::LOGGER,"get_token_info-->valid={}", valid);
     valid
 }
 
@@ -530,6 +524,6 @@ pub fn find_official(official: &str) -> bool {
     if details == "".to_string() {
         valid = false;
     }
-    println!("valid={}", valid);
+    debug!(crate::LOGGER,"find_official-->valid={}", valid);
     valid
 }

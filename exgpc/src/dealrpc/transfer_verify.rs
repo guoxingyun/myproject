@@ -17,9 +17,9 @@ pub fn json_to_bin(
     let to_pubkey = super::dealmongo::get_pubkey_by_account(toaccount);
     let amountstr = amount.to_string();
     let headhash = super::dealmongo::get_headhash(fromaccount);
-    println!("b64----{}\n\n\n", amountstr);
+    info!(crate::LOGGER,"json_to_bin-->amountstr----{}\n\n\n", amountstr);
     let amountf64: f64 = amountstr.to_string().parse().unwrap();
-    println!("b64parse----{}", amountf64);
+    info!(crate::LOGGER,"json_to_bin-->amountf64----{}", amountf64);
     let bin = serialize(head, &from_pubkey, &to_pubkey, token, &amountstr, &headhash);
     bin
 }
@@ -38,7 +38,7 @@ fn bytes_to_string(bytes: &Vec<u8>) -> String {
         bin += &tmp;
         i += 1;
     }
-    println!("{}", bin);
+    info!(crate::LOGGER,"bytes_to_string---bin={}", bin);
 
     bin
 }
@@ -55,50 +55,42 @@ fn serialize(
     amount: &str,
     headhash: &str,
 ) -> String {
-    println!("b64----");
     let mut bytes = [0, 0, 0].to_vec();
     let mut splite = [0, 0, 0].to_vec();
-    println!("{}", head);
     let mut head_bytes = head.to_string().into_bytes();
 
     let mut from_pubkey_bytes = from_pubkey.to_string().into_bytes();
-    println!("from_pubkey={}", from_pubkey);
     let mut to_pubkey_bytes = to_pubkey.to_string().into_bytes();
-    println!("to_pubkey={}", to_pubkey);
     let mut token_bytes = token.to_string().into_bytes();
-    println!("token={}", token);
     let mut amount_bytes = amount.to_string().into_bytes();
-    println!("amount={}", amount);
 
     let mut headhash_bytes = headhash.to_string().into_bytes();
-    println!("headhash={}", headhash);
+    info!(crate::LOGGER,"serialize-->headhash={}", headhash);
 
-    println!("b64----{:?}", bytes);
     bytes.append(&mut head_bytes);
     bytes.append(&mut splite);
 
     let mut splite = [0, 0, 0].to_vec();
-    println!("b64----{:?}", bytes);
     bytes.append(&mut from_pubkey_bytes);
     bytes.append(&mut splite);
 
     let mut splite = [0, 0, 0].to_vec();
-    println!("b64----{:?}", bytes);
     bytes.append(&mut to_pubkey_bytes);
     bytes.append(&mut splite);
+
     let mut splite = [0, 0, 0].to_vec();
-    println!("b64----{:?}", bytes);
     bytes.append(&mut token_bytes);
     bytes.append(&mut splite);
+
     let mut splite = [0, 0, 0].to_vec();
-    println!("b64----{:?}", bytes);
     bytes.append(&mut amount_bytes);
     bytes.append(&mut splite);
+
     let mut splite = [0, 0, 0].to_vec();
     bytes.append(&mut headhash_bytes);
     bytes.append(&mut splite);
 
-    println!("RAWbytes==={:X?}==", bytes);
+    info!(crate::LOGGER,"serialize-->RAWbytes==={:X?}==", bytes);
 
     let bin = bytes_to_string(&bytes);
 
@@ -109,7 +101,7 @@ fn serialize(
 pub fn sign_transaction(prikey: &str, rawdata: &str) -> String {
     let mut pkcs8_bytes: Vec<u8> = Vec::new();
 
-    println!("{}", prikey);
+    info!(crate::LOGGER,"sign_transaction-->prikey={},rawdata={}", prikey,rawdata);
     let mut i = 0;
     while None != prikey.get(i..i + 2) {
         let mut tmp2 = "".to_string();
@@ -124,24 +116,24 @@ pub fn sign_transaction(prikey: &str, rawdata: &str) -> String {
         i += 2;
     }
 
-    println!("{:?}", pkcs8_bytes);
+    info!(crate::LOGGER,"sign_transaction-->{:?}", pkcs8_bytes);
 
-    println!("pkcs8_bytes={:?}==={}==", pkcs8_bytes, rawdata);
+    info!(crate::LOGGER,"sign_transaction-->pkcs8_bytes={:?}==={}==", pkcs8_bytes, rawdata);
 
     let key_pair =
         signature::Ed25519KeyPair::from_pkcs8(untrusted::Input::from(&pkcs8_bytes)).unwrap();
 
     let message = rawdata.to_string().into_bytes();
-    println!("message={:?}", message);
+    info!(crate::LOGGER,"sign_transactionmessage={:?}", message);
     let sig_data = key_pair.sign(&message);
-    println!("sig_data==={:?}", sig_data.as_ref());
+    info!(crate::LOGGER,"sign_transactionsig_data==={:?}", sig_data.as_ref());
 
     let sign_bin = bytes_to_string(&sig_data.as_ref().to_vec());
     sign_bin
 }
 //字面量转vec<u8>
 pub fn deserialize(rawdata: &str) -> Vec<u8> {
-    println!("deserialize.rawdata={}", rawdata);
+    info!(crate::LOGGER,"deserialize-->deserialize.rawdata={}", rawdata);
     let mut bytes: Vec<u8> = Vec::new();
     let mut i = 0;
     while None != rawdata.get(i..i + 2) {
@@ -156,7 +148,7 @@ pub fn deserialize(rawdata: &str) -> Vec<u8> {
         }
         i += 2;
     }
-    println!("kkkkk{:?}", bytes);
+    info!(crate::LOGGER,"deserializekkkkk{:?}", bytes);
     bytes
 }
 
@@ -166,11 +158,11 @@ fn analy_rawdata(data: &str) -> Vec<u8> {
     //"41" -> 41
     let mut serialize_data = deserialize(data);
     //41 -> 65 ->  "A"
-    println!("analy_rawdata======{:?}", serialize_data);
+    info!(crate::LOGGER,"analy_rawdataanaly_rawdata======{:?}", serialize_data);
     let outstr = std::str::from_utf8_mut(&mut serialize_data).unwrap();
     //"A" ->A -> 15
 
-    println!("outstr======{:?}", outstr);
+    info!(crate::LOGGER,"analy_rawdataoutstr======{:?}", outstr);
 
     let bytes = deserialize(&outstr);
     bytes
@@ -186,25 +178,20 @@ fn verify_sign(sign_data: &str, raw_data: &str) -> Result<(), Error> {
     if let Some(tmp) = v.pop() {
         pubkeystr = tmp.to_string();
     }
-    println!("pubkeystr=={}", pubkeystr); //这是对应16进制的值，并不是真正的pubkey，还要计算出对应的asicc码,该asicc、码是真实公钥的字符串形式
+    info!(crate::LOGGER,"verify_sign-->pubkeystr=={}", pubkeystr); //这是对应16进制的值，并不是真正的pubkey，还要计算出对应的asicc码,该asicc、码是真实公钥的字符串形式
 
     let peer_public_key_bytes = analy_rawdata(&pubkeystr);
 
-    println!("ss222222222");
     let message = raw_data.to_string().into_bytes();
-
-    println!("ss222222222");
     let sig_bytes = deserialize(sign_data);
 
-    println!("peer_public_key_bytes={:?}", peer_public_key_bytes);
-    println!("message={:?}===sig_bytes={:?}", message, sig_bytes);
+    info!(crate::LOGGER,"verify_sign-->peer_public_key_bytes={:?}", peer_public_key_bytes);
+    info!(crate::LOGGER,"verify_sign-->message={:?}===sig_bytes={:?}", message, sig_bytes);
     let peer_public_key = untrusted::Input::from(&peer_public_key_bytes);
 
     let msg = untrusted::Input::from(&message);
-    println!("ss222222222");
     let sig = untrusted::Input::from(&sig_bytes);
 
-    println!("ss222222222");
     signature::verify(&signature::ED25519, peer_public_key, msg, sig)
         .map_err(|_| Error::InvalidSignature)
 }
@@ -223,9 +210,8 @@ pub fn get_txid(_fromaccount: &str, _toaccount: &str, _token: &str, _amount: &f6
     let mut buf = vec![0; 96];
     assert!(rng.fill(&mut buf).is_ok());
 
-    println!("rng={:?},ms={:?}", buf, &timeAndInfo[..]);
+    info!(crate::LOGGER,"get_txid-->rng={:?},ms={:?}", buf, &timeAndInfo[..]);
     buf.extend(timeAndInfo.iter().cloned());
-    println!("rng={:?}", &buf[..]);
     let buf256 = digest::digest(&digest::SHA256, &buf);
     let selic256 = buf256.as_ref();
     let mut txid = "".to_string();
@@ -236,7 +222,7 @@ pub fn get_txid(_fromaccount: &str, _toaccount: &str, _token: &str, _amount: &f6
         i += 1;
     }
 
-    println!("txid={},", txid);
+    info!(crate::LOGGER,"get_txid-->txid={},", txid);
     txid
 }
 
@@ -270,11 +256,10 @@ fn getinfo_from_raw(raw_data: &str) -> (String, String, String, String, String, 
     }
 
     if let Some(tmp) = v.pop() {
-        println!("tokenname_raw={}", tmp);
+        info!(crate::LOGGER,"getinfo_from_raw-->tokenname_raw={}", tmp);
         let mut serialize_data = deserialize(tmp);
-        println!("tokenname_serialize_data={:?}", serialize_data);
         let outstr = std::str::from_utf8_mut(&mut serialize_data).unwrap();
-        println!("tokenname_outstr={:?}", outstr);
+        info!(crate::LOGGER,"getinfo_from_raw-->tokenname_outstr={:?}", outstr);
         token = outstr.to_string();
     }
 
@@ -290,8 +275,8 @@ fn getinfo_from_raw(raw_data: &str) -> (String, String, String, String, String, 
         headhash = outstr.to_string();
     }
 
-    println!(
-        "head=={}\n,frompubkey={}\n,to_pubkey={}\n,token={}\n,amount={}\n,headhash={}",
+    info!(crate::LOGGER,
+        "getinfo_from_raw--->head=={}\n,frompubkey={}\n,to_pubkey={}\n,token={}\n,amount={}\n,headhash={}",
         head, from_pubkey, to_pubkey, token, amount, headhash
     );
     (head, from_pubkey, to_pubkey, token, amount, headhash)
@@ -301,7 +286,7 @@ fn deal_issuetoken(fromaccount: &str, toaccount: &str, token: &str, amount: &f64
     let private_key = super::dealmongo::get_private_key(fromaccount);
     let amount = super::decimal_f64(amount);
     let issue_valid = super::valid_rule_issue_token(&private_key, fromaccount, token, &amount);
-    println!("issue_valid={}", issue_valid);
+    info!(crate::LOGGER,"deal_issuetoken--issue_valid={}", issue_valid);
     if issue_valid == true {
         crate::dealrpc::issue_by_eos(toaccount, token, &amount);
 
@@ -323,10 +308,6 @@ fn deal_transfer(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) 
     //其实之前签名校验的时候已经判断了，这里没必要，但为了复用之前的接口
     let valid_transfer =
         super::valid_rule_transfer(&private_key, fromaccount, toaccount, token, &amount);
-    //      if valid_transfer == false {
-    //return Ok(Value::String("params is not right".to_string()));
-    //	return
-    //  }
     assert!(valid_transfer);
 
     let new_amount_fromaccount =
@@ -335,8 +316,8 @@ fn deal_transfer(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) 
     let new_amount_toaccount =
         &amount + super::dealmongo::get_account_token_balance(toaccount, token);
 
-    println!(
-        "--{}---{}--{}--",
+    info!(crate::LOGGER,
+        "deal_transfer-->--{}---{}--{}--",
         super::dealmongo::get_account_token_balance(fromaccount, token),
         amount,
         super::dealmongo::get_account_token_balance(toaccount, token)
@@ -371,7 +352,6 @@ pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
     match verify_sign(sign_data, raw_data) {
         Ok(_) => println!("verify_sign ok"),
         Err(_err) => {
-            println!("verify_sign fail");
             return "verify_sign fail".to_string();
         }
     }
@@ -412,11 +392,3 @@ pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
     result
 }
 
-/*
-pub fn create_key() -> (String,String){
-
-    let pubkey = "0".to_string();
-    let prikey = "0".to_string();
-    (pubkey,prikey)
-}
-*/
