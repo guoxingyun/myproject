@@ -644,9 +644,6 @@ pub fn registmethod() {
 	
         let after_fee_amount_toaccount =
             dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC") + 0.1;
-
-	
-	
 	let after_fee_amount_fromaccont = decimal_f64(&after_fee_amount_fromaccont);
 	let after_fee_amount_toaccount = decimal_f64(&after_fee_amount_toaccount);
 
@@ -654,6 +651,7 @@ pub fn registmethod() {
 		let after_fee_amount_fromaccont = new_amount_fromaccount - 0.1;
 		let after_fee_amount_fromaccont = decimal_f64(&after_fee_amount_fromaccont);
         	dealmongo::update_account_info(&parsed.fromaccount, &parsed.token, &after_fee_amount_fromaccont);
+        	dealmongo::update_account_info(&parsed.toaccount, &parsed.token,&new_amount_toaccount);
         	dealmongo::update_account_info("2BCCA62F@gxy111111112", "VSC", &after_fee_amount_toaccount);
 	}else{
         	dealmongo::update_account_info(&parsed.fromaccount, &parsed.token, &new_amount_fromaccount);

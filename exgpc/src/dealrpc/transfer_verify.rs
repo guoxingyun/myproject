@@ -1,6 +1,6 @@
 //用公钥替换地址
 use ring::{digest, rand, rand::SecureRandom, signature};
-
+use crate::dealrpc::decimal_f64;
 enum Error {
     InvalidSignature,
 }
@@ -284,7 +284,7 @@ fn getinfo_from_raw(raw_data: &str) -> (String, String, String, String, String, 
 
 fn deal_issuetoken(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) -> String {
     let private_key = super::dealmongo::get_private_key(fromaccount);
-    let amount = super::decimal_f64(amount);
+    let amount = decimal_f64(amount);
     let issue_valid = super::valid_rule_issue_token(&private_key, fromaccount, token, &amount);
     info!(crate::LOGGER,"deal_issuetoken--issue_valid={}", issue_valid);
     if issue_valid == true {
@@ -299,10 +299,10 @@ fn deal_issuetoken(fromaccount: &str, toaccount: &str, token: &str, amount: &f64
     }
 }
 
-fn deal_transfer(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) {
-    let _txid = "0".to_string();
+fn deal_transfer(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) -> String{
+    let mut result = "".to_string();
 
-    let amount = super::decimal_f64(amount);
+    let amount = decimal_f64(amount);
     let private_key = super::dealmongo::get_private_key(fromaccount);
 
     //其实之前签名校验的时候已经判断了，这里没必要，但为了复用之前的接口
@@ -316,12 +316,22 @@ fn deal_transfer(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) 
     let new_amount_toaccount =
         &amount + super::dealmongo::get_account_token_balance(toaccount, token);
 
+  if token == "VSC" && new_amount_fromaccount < 0.1 {
+                result =  "the rest of vsc is less than fee".to_string();
+        }else if new_amount_fromaccount < 0.0{
+                result =  "the rest of vsc is less than balance".to_string();
+        }else{}
+
+
+
+
     info!(crate::LOGGER,
         "deal_transfer-->--{}---{}--{}--",
         super::dealmongo::get_account_token_balance(fromaccount, token),
         amount,
         super::dealmongo::get_account_token_balance(toaccount, token)
     );
+	
 
     //机构不同得走eos通道，txid用自己得不用eos的
     if super::get_official_from_account(fromaccount) != super::get_official_from_account(toaccount)
@@ -329,23 +339,31 @@ fn deal_transfer(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) 
         super::transfer_by_eos(fromaccount, toaccount, &amount, token);
     }
 
-    super::dealmongo::update_account_info(fromaccount, token, &new_amount_fromaccount);
-    super::dealmongo::update_account_info(toaccount, token, &new_amount_toaccount);
-
-    //每笔交易扣除0.1的手续费,eos侧数据同也做
+       //每笔交易扣除0.1的手续费,eos侧数据同也做
     let after_fee_amount_fromaccont =
         super::dealmongo::get_account_token_balance(fromaccount, "VSC") - 0.1;
     let after_fee_amount_toaccount =
         super::dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC") + 0.1;
+     if token == "VSC"{
+		
+	 let after_fee_amount_fromaccont = new_amount_fromaccount - 0.1;
+                let after_fee_amount_fromaccont = decimal_f64(&after_fee_amount_fromaccont);
+                super::dealmongo::update_account_info(fromaccount, token, &after_fee_amount_fromaccont);
+		super::dealmongo::update_account_info(toaccount, token,&new_amount_toaccount);
+                super::dealmongo::update_account_info("2BCCA62F@gxy111111112", "VSC", &after_fee_amount_toaccount);
+     }else{
+	    super::dealmongo::update_account_info(fromaccount, token, &new_amount_fromaccount);
+	    super::dealmongo::update_account_info(toaccount, token, &new_amount_toaccount);
+	    super::dealmongo::update_account_info("2BCCA62F@gxy111111112","VSC",&after_fee_amount_toaccount);
+	    super::dealmongo::update_account_info(fromaccount, "VSC", &after_fee_amount_fromaccont);
+	}
 
-    super::dealmongo::update_account_info(
-        "2BCCA62F@gxy111111112",
-        "VSC",
-        &after_fee_amount_toaccount,
-    );
-    super::dealmongo::update_account_info(fromaccount, "VSC", &after_fee_amount_fromaccont);
+
+
+
     let fee_eos = 0.1f64;
     super::transfer_by_eos(fromaccount, "2BCCA62F@gxy111111112", &fee_eos, "VSC");
+    result
 }
 
 pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
@@ -371,7 +389,8 @@ pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
             result = deal_issuetoken(&from_account, &to_account, &token, &amount);
         }
         headyu if headyu == "transfer" => {
-            deal_transfer(&from_account, &to_account, &token, &amount);
+            let result2 = deal_transfer(&from_account, &to_account, &token, &amount);
+	    if result2 == "".to_string(){
             let txid = get_txid(&from_account, &to_account, &token, &amount);
             let (block_height, block_hash) = super::get_height_hash();
 
@@ -386,6 +405,9 @@ pub fn push_transaction(sign_data: &str, raw_data: &str) -> String {
             );
             super::dealmongo::update_headhash(&from_account, &txid);
             result = txid;
+	    }else{
+		result = result2;
+	   }
         }
         _ => return "head must be transfer or issuetoken".to_string(),
     }
