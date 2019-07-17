@@ -169,6 +169,7 @@ fn analy_rawdata(data: &str) -> Vec<u8> {
 }
 //验证签名
 fn verify_sign(sign_data: &str, raw_data: &str) -> Result<(), Error> {
+	//考虑hash值以0结尾的情况，这中分割方式就有问题
     let mut v: Vec<&str> = raw_data.split("000000").collect();
     v.reverse();
     let mut pubkeystr = "".to_string();
@@ -310,20 +311,21 @@ fn deal_transfer(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) 
         super::valid_rule_transfer(&private_key, fromaccount, toaccount, token, &amount);
     assert!(valid_transfer);
 
-    let new_amount_fromaccount =
-        super::dealmongo::get_account_token_balance(fromaccount, token) - &amount;
 
-    let new_amount_toaccount =
-        &amount + super::dealmongo::get_account_token_balance(toaccount, token);
+
+
+
+        let from_balance = super::dealmongo::get_account_token_balance(fromaccount, token);
+        let new_amount_fromaccount = super::f64_add_sub(&from_balance,&amount,"sub");
+let to_balance = super::dealmongo::get_account_token_balance(toaccount,token);
+        let new_amount_toaccount:f64 = super::f64_add_sub(&to_balance,&amount,"add");
+
 
   if token == "VSC" && new_amount_fromaccount < 0.1 {
                 result =  "the rest of vsc is less than fee".to_string();
         }else if new_amount_fromaccount < 0.0{
                 result =  "the rest of vsc is less than balance".to_string();
         }else{}
-
-
-
 
     info!(crate::LOGGER,
         "deal_transfer-->--{}---{}--{}--",
@@ -338,24 +340,24 @@ fn deal_transfer(fromaccount: &str, toaccount: &str, token: &str, amount: &f64) 
     {
         super::transfer_by_eos(fromaccount, toaccount, &amount, token);
     }
+    let fee:f64 = 0.1;
 
        //每笔交易扣除0.1的手续费,eos侧数据同也做
-    let after_fee_amount_fromaccont =
-        super::dealmongo::get_account_token_balance(fromaccount, "VSC") - 0.1;
+    let after_fee_amount_fromaccount =
+        super::f64_add_sub(&super::dealmongo::get_account_token_balance(fromaccount, "VSC"),&fee,"sub");
     let after_fee_amount_toaccount =
-        super::dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC") + 0.1;
+        super::f64_add_sub(&super::dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC"),&fee,"add");
      if token == "VSC"{
 		
-	 let after_fee_amount_fromaccont = new_amount_fromaccount - 0.1;
-                let after_fee_amount_fromaccont = decimal_f64(&after_fee_amount_fromaccont);
-                super::dealmongo::update_account_info(fromaccount, token, &after_fee_amount_fromaccont);
+	 let after_fee_amount_fromaccount = super::f64_add_sub(&new_amount_fromaccount,&fee,"sub");
+                super::dealmongo::update_account_info(fromaccount, token, &after_fee_amount_fromaccount);
 		super::dealmongo::update_account_info(toaccount, token,&new_amount_toaccount);
                 super::dealmongo::update_account_info("2BCCA62F@gxy111111112", "VSC", &after_fee_amount_toaccount);
      }else{
 	    super::dealmongo::update_account_info(fromaccount, token, &new_amount_fromaccount);
 	    super::dealmongo::update_account_info(toaccount, token, &new_amount_toaccount);
 	    super::dealmongo::update_account_info("2BCCA62F@gxy111111112","VSC",&after_fee_amount_toaccount);
-	    super::dealmongo::update_account_info(fromaccount, "VSC", &after_fee_amount_fromaccont);
+	    super::dealmongo::update_account_info(fromaccount, "VSC", &after_fee_amount_fromaccount);
 	}
 
 

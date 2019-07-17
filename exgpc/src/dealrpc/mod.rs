@@ -26,6 +26,9 @@ use rust_decimal::Decimal;
 use num::ToPrimitive;
 pub mod dealmongo;
 mod transfer_verify;
+use std::str::FromStr;
+use std::ops::Add;
+use std::ops::Sub;
 
 #[derive(Deserialize, Debug)]
 struct Transfer {
@@ -424,6 +427,24 @@ fn get_block_by_eos(hash: &str) -> String {
     all
 }
 
+pub fn f64_add_sub(balance:&f64,amount:&f64,method:&str) -> f64{
+	//由于f64直接加减的精度丢失，需要经过decimal的一次转换，且只能先转string让转f64不能直接转f64
+	let amount_str = amount.to_string();
+	let balance_str = balance.to_string();
+	let amount_decimal = Decimal::from_str(&amount_str).unwrap();
+	let balance_decimal = Decimal::from_str(&balance_str).unwrap();
+	
+	let mut result_str = "".to_string();
+	if method == "add"{
+		result_str = balance_decimal.add(amount_decimal).to_string();
+	}else{
+		result_str = balance_decimal.sub(amount_decimal).to_string();
+	}
+
+	let result:f64 = result_str.parse().unwrap();
+	result
+}
+
 pub fn registmethod() {
     let mut io = IoHandler::default();
 
@@ -603,8 +624,8 @@ pub fn registmethod() {
 
         info!(crate::LOGGER,"transfer-->generatetxid={},", txid);
 
-        let new_amount_fromaccount =
-            dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token) - &amount;
+        let from_balance = dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token);
+	let new_amount_fromaccount = f64_add_sub(&from_balance,&amount,"sub");
 
 	//防止VSC交易的时候透支额度
 	if &parsed.token == "VSC" && new_amount_fromaccount < 0.1 {
@@ -613,11 +634,11 @@ pub fn registmethod() {
 		return Ok(Value::String("the rest of vsc is less than balance".to_string()))
 	}else{}
 
-        let new_amount_toaccount =
-            &amount + dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token);
+	let to_balance = dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token);
+	let new_amount_toaccount:f64 = f64_add_sub(&to_balance,&amount,"add");
 
         info!(crate::LOGGER,
-            "beferotokenbalancefrom={}--amount={}--beforetokenbalanceto{}--afterfrom={}--afterto={}",
+            "beferotokenbalancefrom={}--amount={}--beforetokenbalanceto{}--afterfrom={}--afterto={}--",
             dealmongo::get_account_token_balance(&parsed.fromaccount, &parsed.token),
             amount,
             dealmongo::get_account_token_balance(&parsed.toaccount, &parsed.token),
@@ -638,18 +659,20 @@ pub fn registmethod() {
 
 
 	//每笔交易扣除0.1的手续费,eos侧数据同也做
+	let fee:f64 = 0.1;
 	
+		
         let after_fee_amount_fromaccont =
-            dealmongo::get_account_token_balance(&parsed.fromaccount, "VSC") - 0.1;
+            f64_add_sub(&dealmongo::get_account_token_balance(&parsed.fromaccount, "VSC"),&fee,"sub");
+	
+
 	
         let after_fee_amount_toaccount =
-            dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC") + 0.1;
-	let after_fee_amount_fromaccont = decimal_f64(&after_fee_amount_fromaccont);
-	let after_fee_amount_toaccount = decimal_f64(&after_fee_amount_toaccount);
+            f64_add_sub(&dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC"),&fee,"add");
+
 
 	if &parsed.token == "VSC"{
-		let after_fee_amount_fromaccont = new_amount_fromaccount - 0.1;
-		let after_fee_amount_fromaccont = decimal_f64(&after_fee_amount_fromaccont);
+		let after_fee_amount_fromaccont = f64_add_sub(&new_amount_fromaccount,&fee,"sub");
         	dealmongo::update_account_info(&parsed.fromaccount, &parsed.token, &after_fee_amount_fromaccont);
         	dealmongo::update_account_info(&parsed.toaccount, &parsed.token,&new_amount_toaccount);
         	dealmongo::update_account_info("2BCCA62F@gxy111111112", "VSC", &after_fee_amount_toaccount);
