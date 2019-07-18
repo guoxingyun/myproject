@@ -13,7 +13,7 @@ use crate::slog::Drain;
 extern crate lazy_static;
 
 
- use std::time::SystemTime;
+ 
 
 lazy_static!{
    static ref LOGGER: slog::Logger  = {

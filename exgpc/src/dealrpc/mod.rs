@@ -13,7 +13,7 @@ use ring::{
     signature::{self, KeyPair},
 };
 use serde::Deserialize;
-use std::fs::OpenOptions;
+
 
 use std::process::Command;
 
@@ -760,7 +760,7 @@ pub fn registmethod() {
             "create_key--->peer_public_key_bytes={:?}", peer_public_key_bytes
         );
 
-        let peer_public_key = untrusted::Input::from(peer_public_key_bytes);
+        let _peer_public_key = untrusted::Input::from(peer_public_key_bytes);
 
         let _m = 0;
         let mut publish_key = "".to_string();
