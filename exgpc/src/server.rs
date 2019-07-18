@@ -21,7 +21,8 @@ lazy_static!{
    let file = OpenOptions::new()
       .create(true)
       .write(true)
-      .truncate(false)
+      //.truncate(false)
+      .truncate(true)
       .open(log_path)
       .unwrap();
 

@@ -55,8 +55,12 @@ fn serialize(
     amount: &str,
     headhash: &str,
 ) -> String {
-    let mut bytes = [0, 0, 0].to_vec();
-    let mut splite = [0, 0, 0].to_vec();
+	//防止pubkey尾部为零的时候不好分割
+    let splite = [0,0,1,0,0].to_vec();
+    let mut bytes = splite.clone();
+
+    let mut splite_clone = splite.clone();
+
     let mut head_bytes = head.to_string().into_bytes();
 
     let mut from_pubkey_bytes = from_pubkey.to_string().into_bytes();
@@ -68,27 +72,27 @@ fn serialize(
     info!(crate::LOGGER,"serialize-->headhash={}", headhash);
 
     bytes.append(&mut head_bytes);
-    bytes.append(&mut splite);
+    bytes.append(&mut splite_clone);
 
-    let mut splite = [0, 0, 0].to_vec();
+    let mut splite_clone = splite.clone();
     bytes.append(&mut from_pubkey_bytes);
-    bytes.append(&mut splite);
+    bytes.append(&mut splite_clone);
 
-    let mut splite = [0, 0, 0].to_vec();
+    let mut splite_clone = splite.clone();
     bytes.append(&mut to_pubkey_bytes);
-    bytes.append(&mut splite);
+    bytes.append(&mut splite_clone);
 
-    let mut splite = [0, 0, 0].to_vec();
+    let mut splite_clone = splite.clone();
     bytes.append(&mut token_bytes);
-    bytes.append(&mut splite);
+    bytes.append(&mut splite_clone);
 
-    let mut splite = [0, 0, 0].to_vec();
+    let mut splite_clone = splite.clone();
     bytes.append(&mut amount_bytes);
-    bytes.append(&mut splite);
+    bytes.append(&mut splite_clone);
 
-    let mut splite = [0, 0, 0].to_vec();
+    let mut splite_clone = splite.clone();
     bytes.append(&mut headhash_bytes);
-    bytes.append(&mut splite);
+    bytes.append(&mut splite_clone);
 
     info!(crate::LOGGER,"serialize-->RAWbytes==={:X?}==", bytes);
 
@@ -170,7 +174,7 @@ fn analy_rawdata(data: &str) -> Vec<u8> {
 //验证签名
 fn verify_sign(sign_data: &str, raw_data: &str) -> Result<(), Error> {
 	//考虑hash值以0结尾的情况，这中分割方式就有问题
-    let mut v: Vec<&str> = raw_data.split("000000").collect();
+    let mut v: Vec<&str> = raw_data.split("0000010000").collect();
     v.reverse();
     let mut pubkeystr = "".to_string();
     //只分离出来pubkey的信息
@@ -228,7 +232,7 @@ pub fn get_txid(_fromaccount: &str, _toaccount: &str, _token: &str, _amount: &f6
 }
 
 fn getinfo_from_raw(raw_data: &str) -> (String, String, String, String, String, String) {
-    let mut v: Vec<&str> = raw_data.split("000000").collect();
+    let mut v: Vec<&str> = raw_data.split("0000010000").collect();
     v.reverse();
     let mut head = "".to_string();
     let mut from_pubkey = "".to_string();
