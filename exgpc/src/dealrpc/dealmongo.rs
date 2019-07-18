@@ -116,7 +116,7 @@ pub fn get_block(blockhash: &str) -> Vec<(String, String, String, String, String
             }
         }
 
-        info!(crate::LOGGER,"get_block-->blockinfo=={:?}", details2);
+        info!(crate::LOGGER, "get_block-->blockinfo=={:?}", details2);
         data.push(details2);
     }
     data
@@ -167,7 +167,10 @@ fn account_send_receive(doc: &mongodb::ordered::OrderedDocument) -> Vec<Transfer
             }
         }
 
-        info!(crate::LOGGER,"account_send_receive-->account-transferhistory={:?}", details2);
+        info!(
+            crate::LOGGER,
+            "account_send_receive-->account-transferhistory={:?}", details2
+        );
         data.push(details2);
     }
     data
@@ -473,7 +476,7 @@ pub fn get_token_info(token_name: &str) -> bool {
     if details == "".to_string() {
         valid = false;
     }
-    debug!(crate::LOGGER,"get_token_info-->valid={}", valid);
+    debug!(crate::LOGGER, "get_token_info-->valid={}", valid);
     valid
 }
 
@@ -524,6 +527,6 @@ pub fn find_official(official: &str) -> bool {
     if details == "".to_string() {
         valid = false;
     }
-    debug!(crate::LOGGER,"find_official-->valid={}", valid);
+    debug!(crate::LOGGER, "find_official-->valid={}", valid);
     valid
 }

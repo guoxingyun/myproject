@@ -5,7 +5,6 @@ extern crate ring;
 
 use crate::slog::Drain;
 
-use std::fs::OpenOptions;
 use jsonrpc_http_server::jsonrpc_core::*;
 use jsonrpc_http_server::*;
 use ring::{
@@ -14,6 +13,7 @@ use ring::{
     signature::{self, KeyPair},
 };
 use serde::Deserialize;
+use std::fs::OpenOptions;
 
 use std::process::Command;
 
@@ -26,9 +26,9 @@ use rust_decimal::Decimal;
 use num::ToPrimitive;
 pub mod dealmongo;
 mod transfer_verify;
-use std::str::FromStr;
 use std::ops::Add;
 use std::ops::Sub;
+use std::str::FromStr;
 
 #[derive(Deserialize, Debug)]
 struct Transfer {
@@ -79,17 +79,17 @@ pub struct TransferInfo(String, String, String, String, String);
 #[derive(Debug, Clone)]
 pub struct AccountInfo(String, String, String);
 
-#[derive(Deserialize,Debug)]
+#[derive(Deserialize, Debug)]
 struct Account {
     account: String,
 }
 
-#[derive(Deserialize,Debug)]
+#[derive(Deserialize, Debug)]
 struct Official {
     official: String,
 }
 
-#[derive(Deserialize,Debug)]
+#[derive(Deserialize, Debug)]
 struct Transaction {
     txid: String,
 }
@@ -114,7 +114,10 @@ pub fn decimal_f64(amount: &f64) -> f64 {
     if let Some(tmp) = init_dec.to_f64() {
         amount_new = tmp;
     };
-    debug!(crate::LOGGER,"decimal_f64-->amount={},amount_new{}", amount, amount_new);
+    debug!(
+        crate::LOGGER,
+        "decimal_f64-->amount={},amount_new{}", amount, amount_new
+    );
 
     amount_new
 }
@@ -145,7 +148,13 @@ fn valid_amount(amount: &f64) -> bool {
         valid = false;
     }
 
-    debug!(crate::LOGGER,"valid_amount-->amount_mul={},amount.mul(myriad)={},valid={}", amount_mul,amount.mul(myriad),valid);
+    debug!(
+        crate::LOGGER,
+        "valid_amount-->amount_mul={},amount.mul(myriad)={},valid={}",
+        amount_mul,
+        amount.mul(myriad),
+        valid
+    );
     valid
 }
 
@@ -177,7 +186,7 @@ pub fn valid_rule_issue_token(private_key: &str, account: &str, token: &str, amo
         || dealmongo::get_token_info(token)
         || token.len() > 7
     {
-        error!(crate::LOGGER,"params is not right");
+        error!(crate::LOGGER, "params is not right");
         valid = false;
     }
 
@@ -223,7 +232,7 @@ fn valid_rule_transfer(
         aite = tmp.to_string();
     };
 
-    debug!(crate::LOGGER,"valid_rule_transfer--->decollator={}", aite);
+    debug!(crate::LOGGER, "valid_rule_transfer--->decollator={}", aite);
     //这里的浮点型有bug，100000000000000.01显示小于100000000000000.0000,先不管
     if Some(private_key) != Some(private_key_db)
         || amount_clone < 0.0
@@ -234,19 +243,24 @@ fn valid_rule_transfer(
         || account_to.len() > 30
         || aite != "@".to_string()
     {
-        error!(crate::LOGGER,"params is not right in transfer
+        error!(
+            crate::LOGGER,
+            "params is not right in transfer
 	amount_clone={}.amount={},token={}",
-	amount_clone,amount,token);
+            amount_clone,
+            amount,
+            token
+        );
 
         valid = false;
     }
 
     if amount_clone > dealmongo::get_account_token_balance(&account_from, &token) {
-        error!(crate::LOGGER,"{}'s {} is not enough",account_from,token);
+        error!(crate::LOGGER, "{}'s {} is not enough", account_from, token);
         valid = false;
     }
     if dealmongo::get_account_token_balance(&account_from, "VSC") < 0.1 {
-        error!(crate::LOGGER,"VSC fee is not enough,mut be > 0.1");
+        error!(crate::LOGGER, "VSC fee is not enough,mut be > 0.1");
         valid = false;
     }
 
@@ -265,7 +279,10 @@ pub fn get_official_from_account(account: &str) -> String {
         i += 1;
     }
     let official = String::from_utf8(account_bytes).unwrap();
-    info!(crate::LOGGER,"get_official_from_account-->account={},official={}", account,official);
+    info!(
+        crate::LOGGER,
+        "get_official_from_account-->account={},official={}", account, official
+    );
     official
 }
 pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
@@ -293,7 +310,10 @@ pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
     while let Some(top) = one.pop() {
         create_result += &(top as char).to_string();
     }
-    debug!(crate::LOGGER,"issue_by_eos-->create_result={}", create_result);
+    debug!(
+        crate::LOGGER,
+        "issue_by_eos-->create_result={}", create_result
+    );
     assert_ne!(create_result, "".to_string(), "create token error");
 
     let mut list_dir = Command::new("/home/guoxingyun/myproject/exgpc/cleos");
@@ -315,7 +335,10 @@ pub fn issue_by_eos(account: &str, token: &str, amount: &f64) {
     while let Some(top) = one.pop() {
         issue_result += &(top as char).to_string();
     }
-    debug!(crate::LOGGER,"issue_by_eos-->issue_result={}", issue_result);
+    debug!(
+        crate::LOGGER,
+        "issue_by_eos-->issue_result={}", issue_result
+    );
 
     assert_ne!(issue_result, "".to_string(), "issue token error");
 }
@@ -345,7 +368,10 @@ pub fn transfer_by_eos(account_from: &str, account_to: &str, amount: &f64, token
             "[\"{}\",\"{}\",\"{} {}\",\"\"from\":\"{}\",\"to\":\"{}\"\"]",
             official_from, official_to, amount, token, from_prefix, to_prefix
         );
-        info!(crate::LOGGER,"transfer_by_eos-->notVSC->transfer_token_amount={}", transfer_token_amount);
+        info!(
+            crate::LOGGER,
+            "transfer_by_eos-->notVSC->transfer_token_amount={}", transfer_token_amount
+        );
         //list_dir.arg("[\"usrbbb\",\"1000000000.0000 AAH\",\"\"]");
         //'[ "bdaex", "'${office}'", "'${amount}' '${coin}'", "{\"from\":\"official\",\"to\":\"'${address}'\"}" ]'
 
@@ -354,7 +380,7 @@ pub fn transfer_by_eos(account_from: &str, account_to: &str, amount: &f64, token
         let sigh_official = format!("{}@active", official_from);
         list_dir.arg(sigh_official);
     } else {
-        info!(crate::LOGGER,"this token is VSC");
+        info!(crate::LOGGER, "this token is VSC");
         //	../cleos --url http://27.155.88.209:8888  transfer bdaex  ${office}  "${amount} VSC" "{\"from\":\"official\",\"to\":\"${address}\"}"
         list_dir.arg("transfer");
         list_dir.arg(official_from);
@@ -362,8 +388,12 @@ pub fn transfer_by_eos(account_from: &str, account_to: &str, amount: &f64, token
         let amount_vsc = format!("{} VSC", amount);
         //这里和老王的json格式少了个大括号，后边改
         list_dir.arg(amount_vsc);
-        let transfer_token_amount = format!("\"\"from\":\"{}\",\"to\":\"{}\"\"", from_prefix, to_prefix);
-        info!(crate::LOGGER,"transfer_by_eos-->transfer_token_amount={}", transfer_token_amount);
+        let transfer_token_amount =
+            format!("\"\"from\":\"{}\",\"to\":\"{}\"\"", from_prefix, to_prefix);
+        info!(
+            crate::LOGGER,
+            "transfer_by_eos-->transfer_token_amount={}", transfer_token_amount
+        );
     }
 
     //let getinfo2 = list_dir.status().expect("process failed to execute");
@@ -374,7 +404,10 @@ pub fn transfer_by_eos(account_from: &str, account_to: &str, amount: &f64, token
     while let Some(top) = one.pop() {
         issue_result += &(top as char).to_string();
     }
-    info!(crate::LOGGER,"transfer_by_eos-->thransfer_return={}", issue_result);
+    info!(
+        crate::LOGGER,
+        "transfer_by_eos-->thransfer_return={}", issue_result
+    );
 
     assert_ne!(issue_result, "".to_string(), "transfer token error");
 }
@@ -392,7 +425,7 @@ fn get_height_hash() -> (String, String) {
     while let Some(top) = one.pop() {
         all += &(top as char).to_string();
     }
-    info!(crate::LOGGER,"get_height_hash-->chaininfo==={}", all);
+    info!(crate::LOGGER, "get_height_hash-->chaininfo==={}", all);
 
     //临时先这样写死，后边快高涨到9位数，2年后才出问题
     let mut height = "0".to_string();
@@ -422,27 +455,27 @@ fn get_block_by_eos(hash: &str) -> String {
     while let Some(top) = one.pop() {
         all += &(top as char).to_string();
     }
-    info!(crate::LOGGER,"get_block_by_eos-->blockinfo={}", all);
+    info!(crate::LOGGER, "get_block_by_eos-->blockinfo={}", all);
 
     all
 }
 
-pub fn f64_add_sub(balance:&f64,amount:&f64,method:&str) -> f64{
-	//由于f64直接加减的精度丢失，需要经过decimal的一次转换，且只能先转string让转f64不能直接转f64
-	let amount_str = amount.to_string();
-	let balance_str = balance.to_string();
-	let amount_decimal = Decimal::from_str(&amount_str).unwrap();
-	let balance_decimal = Decimal::from_str(&balance_str).unwrap();
-	
-	let mut result_str = "".to_string();
-	if method == "add"{
-		result_str = balance_decimal.add(amount_decimal).to_string();
-	}else{
-		result_str = balance_decimal.sub(amount_decimal).to_string();
-	}
+pub fn f64_add_sub(balance: &f64, amount: &f64, method: &str) -> f64 {
+    //由于f64直接加减的精度丢失，需要经过decimal的一次转换，且只能先转string让转f64不能直接转f64
+    let amount_str = amount.to_string();
+    let balance_str = balance.to_string();
+    let amount_decimal = Decimal::from_str(&amount_str).unwrap();
+    let balance_decimal = Decimal::from_str(&balance_str).unwrap();
 
-	let result:f64 = result_str.parse().unwrap();
-	result
+    let mut result_str = "".to_string();
+    if method == "add" {
+        result_str = balance_decimal.add(amount_decimal).to_string();
+    } else {
+        result_str = balance_decimal.sub(amount_decimal).to_string();
+    }
+
+    let result: f64 = result_str.parse().unwrap();
+    result
 }
 
 pub fn registmethod() {
@@ -456,8 +489,8 @@ pub fn registmethod() {
 
     io.add_method("json_to_bin", |_params: Params| {
         let parsed: DataInfo = _params.parse().unwrap();
-	
-        info!(crate::LOGGER, "json_to_bin::{:?}",parsed);
+
+        info!(crate::LOGGER, "json_to_bin::{:?}", parsed);
 
         let bin = transfer_verify::json_to_bin(
             &parsed.head,
@@ -472,7 +505,7 @@ pub fn registmethod() {
 
     io.add_method("sigh_transaction", |_params: Params| {
         let parsed: Sig = _params.parse().unwrap();
-        info!(crate::LOGGER, "sigh_transaction::{:?}",parsed);
+        info!(crate::LOGGER, "sigh_transaction::{:?}", parsed);
         let sigdata = transfer_verify::sign_transaction(&parsed.prikey, &parsed.raw);
 
         Ok(Value::String(sigdata))
@@ -480,7 +513,7 @@ pub fn registmethod() {
 
     io.add_method("push_transaction", |_params: Params| {
         let parsed: SigAndRaw = _params.parse().unwrap();
-        info!(crate::LOGGER, "push_transaction_transaction::{:?}",parsed);
+        info!(crate::LOGGER, "push_transaction_transaction::{:?}", parsed);
         let result = transfer_verify::push_transaction(&parsed.sig, &parsed.raw);
 
         Ok(Value::String(result))
@@ -488,11 +521,11 @@ pub fn registmethod() {
 
     io.add_method("issue_token", |_params: Params| {
         let parsed: IssueTokenInfo = _params.parse().unwrap();
-        info!(crate::LOGGER, "issue_token::{:?}",parsed);
+        info!(crate::LOGGER, "issue_token::{:?}", parsed);
         let amount = decimal_f64(&parsed.amount);
         let issue_valid =
             valid_rule_issue_token(&parsed.private_key, &parsed.account, &parsed.token, &amount);
-        debug!(crate::LOGGER, "issue_token::issue_valid{}",issue_valid);
+        debug!(crate::LOGGER, "issue_token::issue_valid{}", issue_valid);
 
         if issue_valid == true {
             crate::dealrpc::issue_by_eos(&parsed.account, &parsed.token, &amount);
@@ -508,7 +541,7 @@ pub fn registmethod() {
 
     io.add_method("account_info", |_params: Params| {
         let parsed: Account = _params.parse().unwrap();
-        info!(crate::LOGGER, "account_info::{:?}",parsed);
+        info!(crate::LOGGER, "account_info::{:?}", parsed);
         let mut data = dealmongo::get_account_info(&parsed.account);
         let mut return_data = "".to_string();
         while let Some(top) = data.pop() {
@@ -521,10 +554,13 @@ pub fn registmethod() {
     io.add_method("get_transaction", |_params: Params| {
         let parsed: Transaction = _params.parse().unwrap();
 
-        info!(crate::LOGGER, "get_transaction::{:?}",parsed);
+        info!(crate::LOGGER, "get_transaction::{:?}", parsed);
 
         let mut data = dealmongo::get_transaction_info(&parsed.txid);
-        info!(crate::LOGGER,"get_transaction-->-ransaction_info=={:?}", data);
+        info!(
+            crate::LOGGER,
+            "get_transaction-->-ransaction_info=={:?}", data
+        );
         let mut return_data = "".to_string();
         if let Some(top) = data.pop() {
             return_data = format!("{:?};", top);
@@ -536,12 +572,12 @@ pub fn registmethod() {
     io.add_method("get_block", |_params: Params| {
         let parsed: BlockHash = _params.parse().unwrap();
 
-        info!(crate::LOGGER, "get_block::{:?}",parsed);
+        info!(crate::LOGGER, "get_block::{:?}", parsed);
 
         let blockinfo = dealmongo::get_block(&parsed.hash);
         let mut result = "".to_string();
         if blockinfo.len() == 0 {
-            error!(crate::LOGGER,"mongo cannt find this hash");
+            error!(crate::LOGGER, "mongo cannt find this hash");
             if get_block_by_eos(&parsed.hash).len() == 0 {
                 result = "Invalid block ID".to_string();
             } else {
@@ -566,7 +602,7 @@ pub fn registmethod() {
     io.add_method("account_history", |_params: Params| {
         let parsed: Account = _params.parse().unwrap();
 
-        info!(crate::LOGGER, "account_history::{:?}",parsed);
+        info!(crate::LOGGER, "account_history::{:?}", parsed);
 
         let mut data = dealmongo::account_history(&parsed.account);
         let mut return_data = "".to_string();
@@ -660,17 +696,8 @@ pub fn registmethod() {
 
 	//每笔交易扣除0.1的手续费,eos侧数据同也做
 	let fee:f64 = 0.1;
-	
-		
-        let after_fee_amount_fromaccont =
-            f64_add_sub(&dealmongo::get_account_token_balance(&parsed.fromaccount, "VSC"),&fee,"sub");
-	
-
-	
-        let after_fee_amount_toaccount =
-            f64_add_sub(&dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC"),&fee,"add");
-
-
+        let after_fee_amount_fromaccont = f64_add_sub(&dealmongo::get_account_token_balance(&parsed.fromaccount, "VSC"),&fee,"sub");
+        let after_fee_amount_toaccount = f64_add_sub(&dealmongo::get_account_token_balance("2BCCA62F@gxy111111112", "VSC"),&fee,"add");
 	if &parsed.token == "VSC"{
 		let after_fee_amount_fromaccont = f64_add_sub(&new_amount_fromaccount,&fee,"sub");
         	dealmongo::update_account_info(&parsed.fromaccount, &parsed.token, &after_fee_amount_fromaccont);
@@ -708,7 +735,7 @@ pub fn registmethod() {
 
     io.add_method("create_key", |_params: Params| {
         let parsed: Official = _params.parse().unwrap();
-        info!(crate::LOGGER, "create_key::{:?}",parsed);
+        info!(crate::LOGGER, "create_key::{:?}", parsed);
 
         if dealmongo::find_official(&parsed.official) == false {
             return Ok(Value::String("official not exist".to_string()));
@@ -724,8 +751,14 @@ pub fn registmethod() {
 
         let peer_public_key_bytes = key_pair.public_key().as_ref();
 
-        debug!(crate::LOGGER,"create_key--->peer_private_key_bytes={:?}", peer_private_key_bytes);
-        debug!(crate::LOGGER,"create_key--->peer_public_key_bytes={:?}", peer_public_key_bytes);
+        debug!(
+            crate::LOGGER,
+            "create_key--->peer_private_key_bytes={:?}", peer_private_key_bytes
+        );
+        debug!(
+            crate::LOGGER,
+            "create_key--->peer_public_key_bytes={:?}", peer_public_key_bytes
+        );
 
         let peer_public_key = untrusted::Input::from(peer_public_key_bytes);
 
