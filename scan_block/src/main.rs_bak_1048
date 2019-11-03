@@ -1,0 +1,132 @@
+use std::process::Command;
+extern crate rustc_serialize;
+// 引入rustc_serialize模块
+use rustc_serialize::json;
+use std::ops::Deref;
+
+extern crate mongodb;
+use mongodb::db::ThreadedDatabase;
+use mongodb::{bson, doc, Bson};
+use mongodb::{Client, ThreadedClient};
+
+struct BaseSprite;
+/*]
+"hash" : "0000000036b50e0ab347250170b776c1e35156e66ccb9eb0844913e18ef6c363",
+    "confirmations" : 745,
+    "size" : 5983,
+    "height" : 317840,
+    "version" : 2,
+    "merkleroot" : "0ffd934dba83b1d565933228a17c390cbf0aa0cf14dbc6e6eddacf60cf2bef79",
+    "tx" : [
+        "5284a2a46f656ef4043d937995dd84345931828b4e859db95efdf18f3826d1e1",
+        "cf7f5c8d53f8131a130bfd3f3677a61fb9693f6a03a2d63153dc58ed6443ac40",
+        "d5d8c681121a059aa06f714b5e7d87b4ab6483f72a5d72f7a811aa030372985c",
+        "8cbec3a6192f5d9908e7329d573e2fccfa5df3602b15f968ffbf67666ca6891c",
+        "a9e31232b829f6c35127594414348dfd8138e67204762d66f862860cd170c4ad",
+        "96c9a591b9255bb5f6640acac22cd47b22609bb345877157686e43c607e30d27",
+        "01cf6127b944cf8151801c0d3fd51fd341fa6d85abfdf455ee97687e0155e4e5",
+        "4d4b2a9af619bde75918164e766e1b7648c1de7263e6cecab9d00fd7e6d19518",
+        "12f7a893b4ef55a03439b8f8284ab4c59754b863fa8178159bedb3f3ece6f44c",
+        "94c0017072e942fd205e8ac71406e21429dbf5f05d713241459ec45e73669ec5",
+        "0d12b1f6265c127773d507510e3dbfce675f2c1033164bd505a97bf06a95b02d",
+        "750252d9cb35dd6014c75185b6bd0618b1855eac963f0c2c2ae6d9b8ccad8bc7",
+        "975688bed46d1f34e1e2596d6202404847a6c095a07c094c910756354afda6b0"
+    ],
+    "time" : 1420981258,
+    "nonce" : 4127213376,
+    "bits" : "1d00ffff",
+    "difficulty" : 1.00000000,
+    "chainwork" : "0000000000000000000000000000000000000000000000019e91a1d90f758277",
+    "previousblockhash" : "000000001900f7a202a9c3826a1269439fc8d63a7de4e61ec9ae738537d887eb",
+    "nextblockhash" : "00000000a021bee7bf03dd4ceb66e784d0030207c890a3c85fb206223183dd5d"
+
+
+*/
+#[derive(RustcDecodable, RustcEncodable)]
+struct BlockStruct  {
+    	hash: String,
+    	confirmations: u32,
+    	size: u32,
+    	height: u32,
+   	version: u32,
+	merkleroot:String,
+	tx:Vec<String>,
+	time:u32,
+	nonce:u32,
+	bits:String,
+	difficulty:f32,
+	chainwork:String,
+	previousblockhash:String,
+	nextblockhash:String
+}
+
+fn string_info(output: Vec<u8>) -> String{  
+	    let mut one =  output;
+	    one.reverse();
+	    let mut issue_result: String = "".to_string();
+	    while let Some(top) = one.pop() {
+		issue_result += &(top as char).to_string();
+	    } 
+	    issue_result
+}
+
+pub fn block_insert(
+    blockheight: &str,
+    blockhash: &str,
+    txids: Vec<String>,
+    date: &str,
+) {
+    let client =
+        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+    let coll = client.db("exgpc").collection("transfer");
+
+    let amount_clone = amount.clone();
+
+    let doc = doc! {
+    "blockheight": blockheight,
+    "blockhash": blockhash,
+        "fromAccount": fromAccount,
+        "toAccount": toAccount,
+    "amount":amount_clone,
+    "token":token,
+    "txid":txid,
+    };  
+
+    // Insert document into 'test.movies' collection
+    coll.insert_one(doc.clone(), None)
+        .ok()
+        .expect("Failed to insert document.");
+
+    // Find the document and receive a cursor
+    let mut cursor = coll
+        .find(Some(doc.clone()), None)
+        .ok()
+        .expect("Failed to execute find.");
+
+    let item = cursor.next();
+    match item {
+        Some(Ok(doc)) => match doc.get("fromAccount") {
+            Some(&Bson::String(ref title)) => println!("{}", title),
+            _ => panic!("Expected title to be a string!"),
+        },
+        Some(Err(_)) => panic!("Failed to get next from server!"),
+        None => panic!("Server returned no results!"),
+    }
+}
+
+curl --data '{"method":"eth_getBlockByNumber","params":["0x1b4", true],"id":1,"jsonrpc":"2.0"}' -H "Content-Type: application/json" -X POST http://172.18.185.144:29842
+fn main() {
+	// let mut list_dir = Command::new("/opt/source/bitcoin/src/bitcoin-cli")
+        // .args(&["getblock","0000000036b50e0ab347250170b776c1e35156e66ccb9eb0844913e18ef6c363"])
+	  let mut list_dir = Command::new("curl")
+           .args(&["--data",""])
+        
+         .output()
+         .expect("ls command failed to start");
+         let info = string_info(list_dir.stdout);
+	 let decoded: BlockStruct  = json::decode(&info).unwrap();
+	 println!("88888-2{:?}",decoded.tx);
+	
+}
+
