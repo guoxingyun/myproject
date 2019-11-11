@@ -11,6 +11,23 @@ use mongodb::db::ThreadedDatabase;
 use mongodb::{Client, ThreadedClient};
 use mongodb::{bson, doc, Bson};
 use mongodb::coll::options::{FindOptions, FindOneAndUpdateOptions,ReturnDocument};
+use nix::unistd::{fork, ForkResult};
+use std::{thread, time};
+use std::sync::Mutex;
+extern crate rust_decimal;
+use rust_decimal::Decimal;
+use std::str::FromStr;
+#[macro_use]
+extern crate lazy_static;
+
+
+lazy_static! {
+        static ref CLIENTDB: Mutex<mongodb::Client> = Mutex::new({
+		 let client = Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+            	 client
+        });
+}
+
 
 struct BaseSprite;
 #[derive(RustcDecodable, RustcEncodable)]
@@ -85,11 +102,12 @@ struct BlockStruct {
 
 trait OpertionMongo {
     fn insert(&self);
+    fn insert_txs(&self);
 }
 
 #[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default)]
 struct BaseInfo {}
-#[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default)]
+#[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default,Clone)]
 struct Transaction {
     blockHash: String,
     blockNumber: String,
@@ -112,7 +130,7 @@ struct Transaction {
     v: String,
     value: String,
 }
-#[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default)]
+#[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default,Clone)]
 struct EthBlockStruct {
     author: String,
     difficulty: String,
@@ -158,16 +176,19 @@ fn string_info(output: Vec<u8>) -> String {
 
 impl OpertionMongo for ReturnBlock {
     fn insert(&self) {
-        let client =
-            Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+      //  let client =
+    //        Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
-        let coll = client.db("eth").collection("block");
-        let block_height = self.result.number.clone();
+        let coll = CLIENTDB.lock().unwrap().db("eth").collection("block");
+        //let block_height:u32 = self.result.number.clone().parse().unwrap();
+	//let block_height = u32::from_str_radix(&self.result.number, 16).unwrap();
+	//let block_height = u64::from_str_radix(&self.result.number.get(2..).unwrap(), 16).unwrap();
+	let block_height = self.result.number.clone();
         let block_hash = self.result.hash.clone();
         let txids = format!("{:?}", self.result.transactions);
         let date = self.result.timestamp.clone();
 
-        println!("11111{}--22{:?}", txids, self.result.transactions);
+      //  println!("11111{}--22{:?}", txids, self.result.transactions);
         let doc = doc! {
         "blockheight": &block_height,
         "blockhash": &block_hash,
@@ -178,16 +199,61 @@ impl OpertionMongo for ReturnBlock {
         // Insert document into 'test.movies' collection
         coll.insert_one(doc.clone(), None)
             .ok()
-            .expect("Failed to insert document.");
+            .expect("Failed to insert document. returnblock");
+	println!("doc=doc{:?}",doc);
+    }
+
+
+    fn insert_txs(&self) {
+        //let client =
+         //   Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+
+        let coll = CLIENTDB.lock().unwrap().db("eth").collection("transactions");
+	//库里没有u128
+	//let amount  = u64::from_str_radix(&self.value.get(2..).unwrap(), 16).unwrap();
+	let mut docs = vec![];
+	let txs = &self.result.transactions;
+	for transaction in txs {
+		let doc = doc! {
+		    "blockHash":transaction.blockHash.clone(),
+		    "blockNumber":transaction.blockNumber.clone(),
+		    "chainId":transaction.chainId.clone(),
+		    "condition":transaction.condition.clone(),
+		"creates":transaction.creates.clone(),
+		"from":transaction.from.clone(),
+		"gas":transaction.gas.clone(),
+		"gasPrice":transaction.gasPrice.clone(),
+		"hash":transaction.hash.clone(),
+		"input":transaction.input.clone(),
+		"nonce":transaction.nonce.clone(),
+		"publicKey":transaction.publicKey.clone(),
+		"r":transaction.r.clone(),
+		"raw":transaction.raw.clone(),
+		"s":transaction.s.clone(),
+		"standardV":transaction.standardV.clone(),
+		"to":transaction.to.clone(),
+		"transactionIndex":transaction.transactionIndex.clone(),
+		"v":transaction.v.clone(),
+		"value":transaction.value.clone()
+		};
+		docs.push(doc.clone());	
+	}
+        // Insert document into 'test.movies' collection
+	//println!("----insert--transaction---{}",docs);
+        coll.insert_many(docs, None)
+            .ok()
+            .expect("Failed to insert document.transaction");
     }
 }
-
+/**
 impl OpertionMongo for Transaction {
     fn insert(&self) {
         let client =
             Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
         let coll = client.db("eth").collection("transactions");
+	//库里没有u128
+	//let amount  = u64::from_str_radix(&self.value.get(2..).unwrap(), 16).unwrap();
 
         let doc = doc! {
             "blockHash":&self.blockHash,
@@ -213,29 +279,12 @@ impl OpertionMongo for Transaction {
         };
 
         // Insert document into 'test.movies' collection
+	println!("----insert--transaction---{}",doc);
         coll.insert_one(doc.clone(), None)
             .ok()
-            .expect("Failed to insert document.");
+            .expect("Failed to insert document.transaction");
     }
-}
-//curl --data '{"method":"eth_getBlockByNumber","params":["0x1b4", true],"id":1,"jsonrpc":"2.0"}' -H "Content-Type: application/json" -X POST http://172.18.185.144:29842
-fn scan_block() {
-    let list_dir = Command::new("curl")
-           .args(&["--data","{\"method\":\"eth_getBlockByNumber\",\"params\":[\"0x111b43\", true],\"id\":1,\"jsonrpc\":\"2.0\"}","-H",
-		"Content-Type: application/json","-X","POST","http://172.18.185.144:29842"])
-         .output()
-         .expect("ls command failed to start");
-    println!("88888-2{:?}", list_dir);
-    let info = string_info(list_dir.stdout);
-    println!("88888-2{:?}", info);
-    let decoded: ReturnBlock = json::decode(&info).unwrap();
-    println!("88888-2{:?}", decoded);
-    decoded.insert();
-    for tx in decoded.result.transactions {
-        tx.insert();
-    }
-}
-
+}*/
 //curl --data '{"jsonrpc":"2.0","method":"eth_getBalance","params":["0xc94770007dda54cF92009BFF0dE90c06F603a09f", "latest"],"id":1}' -H "Content-Type: application/json" -X POST http://119.23.215.121:29842
 #[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default)]
 struct Address {
@@ -243,17 +292,35 @@ struct Address {
 }
 
 #[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default)]
-struct EthBalance {
+struct AloneResult {
     result: String,
     jsonrpc: String,
     id: u32,
 }
 
 #[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default)]
-struct MistEthBalance {
-    balance: String,
-    last_txid: String,
+struct EthTransaction{
+    txid: String,
     amount: String
+//后期加上fixme
+//    date: String,
+}
+
+
+
+#[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default)]
+struct MistEthStatus {
+    balance: String,
+    recent_tx: Vec<EthTransaction>,
+}
+
+fn formart_amount(num:&str) ->String {
+	let amount = u128::from_str_radix(num.to_string().get(2..).unwrap(), 16).unwrap().to_string();
+	let ratio = 10u128.pow(18).to_string();
+	let decimal_amount  = Decimal::from_str(&amount).unwrap();
+        let decimal_ratio  = Decimal::from_str(&ratio).unwrap();
+        let result = decimal_amount / decimal_ratio;
+	result.to_string()
 }
 
 fn get_address_info(address: &str) -> String {
@@ -273,62 +340,65 @@ fn get_address_info(address: &str) -> String {
     println!("88888-2{:?}", list_dir);
     let info = string_info(list_dir.stdout);
     println!("88888-2{:?}", info);
-    let decoded: EthBalance = json::decode(&info).unwrap();
+    let decoded: AloneResult = json::decode(&info).unwrap();
     println!("88888-2{:?}", decoded);
 
 
 
-   let client =
-            Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+   //let client =
+  //          Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
-        let coll = client.db("eth").collection("transactions");
+        let coll = CLIENTDB.lock().unwrap().db("eth").collection("transactions");
 
     let doc = doc! {
         "to": address,
     };  
     let mut opts = FindOptions::new();
     opts.sort = Some(doc! { "blockNumber": -1 }); 
-    opts.limit = Some(1); 
+    opts.limit = Some(10); 
 
     let mut cursor = coll.find(Some(doc.clone()), Some(opts)).expect(
         "Failed to execute find command.",
     );
 
     println!("{:?}",cursor);
-
-    let mut amount = "".to_string();
-    let mut txid  = "".to_string();
+    let mut transactions:Vec<EthTransaction> = Vec::new();
     for result in cursor {
         if let Ok(item) = result {
+	    let mut transaction:EthTransaction = Default::default();
             if let Some(&Bson::String(ref hash)) = item.get("hash") {
-                txid = hash.to_string();
+            	transaction.txid = hash.to_string();
             }   
 
 	    if let Some(&Bson::String(ref value)) = item.get("value") {
-                amount = value.to_string();
+	      //transaction.amount = (u128::from_str_radix(&value.to_string().get(2..).unwrap(), 16).unwrap() / 10u128.pow(18)) as f32;
+		transaction.amount  = formart_amount(value);
+	      println!("transaction.amount ---{}",transaction.amount);
             } 
+	    transactions.push(transaction);
         }   
     }  
-
-    let mist_etn_balance = MistEthBalance {
-        balance: decoded.result,
-        last_txid: txid,
-	amount: amount
+   // let balance = (u128::from_str_radix(&decoded.result.to_string().get(2..).unwrap(), 16).unwrap() / 10u128.pow(18)) as f32;
+	let balance = formart_amount(&decoded.result);
+    let mist_eth_status = MistEthStatus {
+        balance: balance.to_string(),
+        recent_tx: transactions,
     };
-    format!("{:?}", mist_etn_balance)
+    //format!("{:?}", mist_eth_status)
+    json::encode(&mist_eth_status).unwrap()
 }
 
-fn main() {
-    // let mut list_dir = Command::new("/opt/source/bitcoin/src/bitcoin-cli")
-    // .args(&["getblock","0000000036b50e0ab347250170b776c1e35156e66ccb9eb0844913e18ef6c363"])
 
+fn rpc_service(){
     let mut io = IoHandler::default();
 
     io.add_method("say_hello", |_| Ok(Value::String("hellossss".into())));
 
     io.add_method("get_account_status", |_params: Params| {
         let address: Address = _params.parse().unwrap();
-        let result = get_address_info(&address.address);
+	let lower_address = &address.address.to_lowercase();
+	println!("111122223333--{}",lower_address);
+        let result = get_address_info(&lower_address);
         Ok(Value::String(result.into()))
     });
 
@@ -340,4 +410,112 @@ fn main() {
         .expect("Unable to start RPC server");
 
     server.wait();
+}
+//curl --data '{"method":"eth_getBlockByNumber","params":["0x1b4", true],"id":1,"jsonrpc":"2.0"}' -H "Content-Type: application/json" -X POST http://172.18.185.144:29842
+//只扫确认的块
+//curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'  http://119.23.215.121:29842
+fn scan_block() {
+   let i =3;
+   //let client = Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
+   let coll = CLIENTDB.lock().unwrap().db("eth").collection("block");
+   
+    let mut opts = FindOptions::new();
+    opts.sort = Some(doc! { "blockheight": -1 });
+    opts.limit = Some(1);
+
+    let mut cursor = coll.find(None, Some(opts)).expect(
+        "Failed to execute find command.",
+    );
+
+    println!("{:?}",cursor);
+    let mut mongo_height = "".to_string();
+    for result in cursor {
+        if let Ok(item) = result {
+            let mut transaction:EthTransaction = Default::default();
+            if let Some(&Bson::String(ref blockheight)) = item.get("blockheight") {
+		println!("blockheight{}333",blockheight);
+                mongo_height = blockheight.to_string();
+            }
+        }
+    }
+
+    println!("height22222--{}",mongo_height); 
+
+    if  mongo_height == "".to_string() {
+
+    	mongo_height = "0x66d941".to_string();
+    }
+
+//    let mut init_height:u64 = mongo_height.parse().unwrap();
+    let mut init_height = u64::from_str_radix(&mongo_height.get(2..).unwrap(), 16).unwrap();
+    println!("sinit_height----{}",init_height);
+    
+    loop {
+	
+	    	let get_height = Command::new("curl")
+		   .args(&["--data","{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}","-H",
+			"Content-Type: application/json","-X","POST","http://172.18.185.144:29842"])
+		 .output()
+		 .expect("ls command failed to start");
+
+
+	
+  		let info = string_info(get_height.stdout);	
+			    println!("4444-2{:?}", info);
+		 let decoded: AloneResult = json::decode(&info).unwrap();
+			    println!("111-2{:?}", decoded);
+		
+		let current_height = u64::from_str_radix(&decoded.result.get(2..).unwrap(), 16).unwrap();
+		println!("current height{}",current_height);
+
+
+		   if current_height - init_height > 12 {
+			    let str_height = format!("0x{:x}",init_height + 1);
+			    let data = format!("{{\"method\":\"eth_getBlockByNumber\",\"params\":[\"{}\", true],\"id\":1,\"jsonrpc\":\"2.0\"}}",str_height);
+			    println!("data={},----{}",data,current_height);
+			    let list_dir = Command::new("curl")
+				   .args(&["--data",&data,"-H",
+					"Content-Type: application/json","-X","POST","http://172.18.185.144:29842"])
+				 .output()
+				 .expect("ls command failed to start");
+			   
+			    let info = string_info(list_dir.stdout);
+			    let mut decoded: ReturnBlock = json::decode(&info).unwrap();
+			   // decoded:number = decoded.number
+			    decoded.insert();
+			    if decoded.result.transactions.len() != 0{
+			   	 decoded.insert_txs();
+			    }
+			/*
+			    for tx in decoded.result.transactions {
+				tx.insert();
+				//curl和mongodb都不能太快,eth每秒6个交易，这里每秒20
+			    	thread::sleep(time::Duration::from_millis(100));
+			    }*/
+			    init_height +=1;
+			    thread::sleep(time::Duration::from_millis(1000));
+		   }else{
+			    thread::sleep(time::Duration::from_millis(5000));
+	           }
+	//	break;
+   }
+}
+
+
+
+fn main() {
+    // let mut list_dir = Command::new("/opt/source/bitcoin/src/bitcoin-cli")
+    // .args(&["getblock","0000000036b50e0ab347250170b776c1e35156e66ccb9eb0844913e18ef6c363"])
+   match fork() {
+   Ok(ForkResult::Parent { child, .. }) => {
+       println!("Continuing execution in parent process, new child has pid: {}", child);
+	rpc_service();
+   }
+   Ok(ForkResult::Child) => {
+	println!("I'm a new child process");
+       scan_block();
+   }
+   Err(_) => println!("Fork failed"),
+   }
+
 }
