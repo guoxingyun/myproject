@@ -103,6 +103,7 @@ struct BlockStruct {
 trait OpertionMongo {
     fn insert(&self);
     fn insert_txs(&self);
+    fn filter_usdt(&self);
 }
 
 #[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default)]
@@ -172,6 +173,108 @@ fn string_info(output: Vec<u8>) -> String {
     }
     let result = str::replace(&issue_result, "null", "\"null\"");
     result
+}
+
+/*
+{
+    "jsonrpc": "2.0", 
+    "id": 1, 
+    "result": {
+        "blockHash": "0xb9d6465f65ecbc8f1d1f7e955652a7bda1154a9b88a91011815be8a014d0666a", 
+        "blockNumber": "0x672ef1", 
+        "contractAddress": null, 
+        "cumulativeGasUsed": "0x4890e5", 
+        "from": "0xf7ad9e873ed1c6d257c7d497d78272e7f3574aa4", 
+        "gasUsed": "0xdbb2", 
+        "logs": [
+            {
+                "address": "0x2482a9c2573b13f70413030004f76b1421749d44", 
+                "blockHash": "0xb9d6465f65ecbc8f1d1f7e955652a7bda1154a9b88a91011815be8a014d0666a", 
+                "blockNumber": "0x672ef1", 
+                "data": "0x000000000000000000000000000000000000000000000006aaf7c8516d0c0000", 
+                "logIndex": "0x1c", 
+                "removed": false, 
+                "topics": [
+                    "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", 
+                    "0x000000000000000000000000f7ad9e873ed1c6d257c7d497d78272e7f3574aa4", 
+                    "0x000000000000000000000000b1648746dabfc8e8c920f57f8b445bc08d3e6675"
+                ], 
+                "transactionHash": "0x66649913b6a26c3df47eb95ccf0185e16f19922bbc2a2e66381eab8704b60c80", 
+                "transactionIndex": "0x49"
+            }
+        ], 
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000020000000000000000100000000000000000000000000000000000000000000000000000000000000000000001000008000000000000080040000000000000000000000000000000000000000000000000000000000000000000000000000010000000400000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000010000", 
+        "status": "0x1", 
+        "to": "0x2482a9c2573b13f70413030004f76b1421749d44", 
+        "transactionHash": "0x66649913b6a26c3df47eb95ccf0185e16f19922bbc2a2e66381eab8704b60c80", 
+        "transactionIndex": "0x49"
+    }
+}
+*/
+
+#[derive(RustcDecodable, RustcEncodable, Deserialize,PartialEq, Debug, Default)]
+struct Log{
+	address:String,
+	blockHash:String,
+	blockNumber:String,
+	data:String,
+	logIndex:String,
+	removed:bool,
+	topics:Vec<String>,
+	transactionHash:String,
+	transactionIndex:String
+}
+
+#[derive(RustcDecodable, RustcEncodable, PartialEq,Deserialize, Debug, Default)]
+struct ReceiptResult{
+	blockHash:String,
+	blockNumber:String,
+	contractAddress:String,
+	cumulativeGasUsed:String,
+	from:String,
+	gasUsed:String,
+	logs:Vec<Log>,
+	logsBloom:String,
+	status:String,
+	to:String,
+	transactionHash:String,
+	transactionIndex:String
+}
+
+#[derive(RustcDecodable, RustcEncodable, PartialEq,Deserialize, Debug, Default)]
+struct Receipt{
+    result: ReceiptResult,
+    jsonrpc: String,
+    id: u32,
+}
+
+fn get_receipt(txid:&str) -> Receipt{
+    //let txid2 = "0x66649913b6a26c3df47eb95ccf0185e16f19922bbc2a2e66381eab8704b60c80";	
+   // let txid2 = "0x66649913b6a26c3df47eb95ccf0185e16f19922bbc2a2e66381eab8704b60c80";	
+    let data = format! {"{{\"method\":\"eth_getTransactionReceipt\",\"params\":[\"{}\"],\"id\":1,\"jsonrpc\":\"2.0\"}}",txid};
+    let list_dir = Command::new("curl")
+        .args(&[
+            "--data",
+            &data,
+            "-H",
+            "Content-Type: application/json",
+            "-X",
+            "POST",
+            "http://172.18.185.144:29842",
+        ])
+        .output()
+        .expect("ls command failed to start");
+    println!("88888-2{:?}", list_dir);
+    let info = string_info(list_dir.stdout);
+    println!("88888-2{:?}", info);
+   // let decoded:Receipt = json::decode(&info);
+    let mut decoded:Receipt = Default::default(); 
+    if let Ok(tmp) = json::decode(&info){
+            decoded = tmp;
+    }else{
+	println!("this is not a erc20 transfer");
+    }
+    decoded
 }
 
 impl OpertionMongo for ReturnBlock {
@@ -244,6 +347,75 @@ impl OpertionMongo for ReturnBlock {
             .ok()
             .expect("Failed to insert document.transaction");
     }
+/*
+{
+    "jsonrpc": "2.0", 
+    "id": 1, 
+    "result": {
+        "blockHash": "0xb9d6465f65ecbc8f1d1f7e955652a7bda1154a9b88a91011815be8a014d0666a", 
+        "blockNumber": "0x672ef1", 
+        "contractAddress": null, 
+        "from": "0xf7ad9e873ed1c6d257c7d497d78272e7f3574aa4", 
+        "gasUsed": "0xdbb2", 
+        "logs": [
+            {
+                "address": "0x2482a9c2573b13f70413030004f76b1421749d44", 
+                "blockHash": "0xb9d6465f65ecbc8f1d1f7e955652a7bda1154a9b88a91011815be8a014d0666a", 
+                "blockNumber": "0x672ef1", 
+                "data": "0x000000000000000000000000000000000000000000000006aaf7c8516d0c0000", 
+                "logIndex": "0x1c", 
+                "removed": false, 
+                "topics": [
+                    "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", 
+                    "0x000000000000000000000000f7ad9e873ed1c6d257c7d497d78272e7f3574aa4", 
+                    "0x000000000000000000000000b1648746dabfc8e8c920f57f8b445bc08d3e6675"
+                ], 
+                "transactionHash": "0x66649913b6a26c3df47eb95ccf0185e16f19922bbc2a2e66381eab8704b60c80", 
+                "transactionIndex": "0x49"
+            }
+        ], 
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000020000000000000000100000000000000000000000000000000000000000000000000000000000000000000001000008000000000000080040000000000000000000000000000000000000000000000000000000000000000000000000000010000000400000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000010000", 
+        "to": "0x2482a9c2573b13f70413030004f76b1421749d44", 
+        "transactionHash": "0x66649913b6a26c3df47eb95ccf0185e16f19922bbc2a2e66381eab8704b60c80", 
+        "transactionIndex": "0x49"
+*/
+    fn filter_usdt(&self){
+        let coll = CLIENTDB.lock().unwrap().db("eth").collection("erc20");
+	//库里没有u128
+	//let amount  = u64::from_str_radix(&self.value.get(2..).unwrap(), 16).unwrap();
+	let txs = &self.result.transactions;
+
+       	let mut docs = vec![];
+	for transaction in txs {
+	
+	   	let receipt_info = get_receipt(&transaction.hash);
+	    	if receipt_info != Receipt::default() && receipt_info.result.to == "0x2482a9c2573b13f70413030004f76b1421749d44"{
+		println!("find a usdt transfer");
+
+			let doc = doc! {
+			 "blockHash":receipt_info.result.blockHash,
+			"blockNumber":receipt_info.result.blockNumber,
+			"contractAddress":receipt_info.result.to,
+			"from":receipt_info.result.from,
+			"to":receipt_info.result.logs[0].topics[2].clone(),
+			"amount":receipt_info.result.logs[0].data.clone(),
+			"txid":transaction.hash.clone()
+			};
+			docs.push(doc.clone());	
+	    	}else{
+			println!("find a other erc20 transfer");
+	   	 }
+	}
+        // Insert document into 'test.movies' collection
+	//println!("----insert--transaction---{}",docs);
+	if(docs.len() != 0){
+        coll.insert_many(docs, None)
+            .ok()
+            .expect("Failed to insert document.transaction");
+	}
+
+
+    }
 }
 /**
 impl OpertionMongo for Transaction {
@@ -309,7 +481,7 @@ struct EthTransaction{
 
 
 #[derive(RustcDecodable, RustcEncodable, Deserialize, Debug, Default)]
-struct MistEthStatus {
+struct MistTokenStatus {
     balance: String,
     recent_tx: Vec<EthTransaction>,
 }
@@ -323,7 +495,7 @@ fn formart_amount(num:&str) ->String {
 	result.to_string()
 }
 
-fn get_address_info(address: &str) -> String {
+fn get_eth_txids(address: &str) -> String {
     let data = format! {"{{\"method\":\"eth_getBalance\",\"params\":[\"{}\",\"latest\"],\"id\":1,\"jsonrpc\":\"2.0\"}}",address};
     let list_dir = Command::new("curl")
         .args(&[
@@ -348,8 +520,7 @@ fn get_address_info(address: &str) -> String {
    //let client =
   //          Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
 
-        let coll = CLIENTDB.lock().unwrap().db("eth").collection("transactions");
-
+    let coll = CLIENTDB.lock().unwrap().db("eth").collection("transactions");
     let doc = doc! {
         "to": address,
     };  
@@ -380,11 +551,71 @@ fn get_address_info(address: &str) -> String {
     }  
    // let balance = (u128::from_str_radix(&decoded.result.to_string().get(2..).unwrap(), 16).unwrap() / 10u128.pow(18)) as f32;
 	let balance = formart_amount(&decoded.result);
-    let mist_eth_status = MistEthStatus {
+    let mist_usdt_status = MistTokenStatus {
         balance: balance.to_string(),
         recent_tx: transactions,
     };
-    //format!("{:?}", mist_eth_status)
+    json::encode(&mist_usdt_status).unwrap()
+}
+
+fn get_usdt_txids(address: &str) -> String {
+/*
+curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_call","params":[{"to": "0x2482a9c2573b13f70413030004f76b1421749d44", "data":"0x70a08231000000000000000000000000b1648746DabFc8e8c920f57f8b445BC08d3E6675"}, "latest"],"id":67}' http://119.23.215.121:29842
+*/
+//let data = format! {"{{\"method\":\"eth_getBalance\",\"params\":[\"{}\",\"latest\"],\"id\":1,\"jsonrpc\":\"2.0\"}}",address};
+  let data = format! {"{{\"method\":\"eth_call\",\"params\":[{{\"to\":\"0x2482a9c2573b13f70413030004f76b1421749d44\",\"data\":\"0x70a08231000000000000000000000000{}\"}},\"latest\"],\"id\":1,\"jsonrpc\":\"2.0\"}}",address.get(2..).unwrap()};
+
+    let list_dir = Command::new("curl")
+        .args(&[
+            "--data",
+            &data,
+            "-H",
+            "Content-Type: application/json",
+            "-X",
+            "POST",
+            "http://172.18.185.144:29842",
+        ])
+        .output()
+        .expect("ls command failed to start");
+    let info = string_info(list_dir.stdout);
+    let decoded: AloneResult = json::decode(&info).unwrap();
+//0x000000000000000000000000b1648746dabfc8e8c920f57f8b445bc08d3e6675
+    let reciver = format!{"0x000000000000000000000000{}",address.to_string().get(2..).unwrap()};
+    let coll = CLIENTDB.lock().unwrap().db("eth").collection("erc20");
+    let doc = doc! {
+        "to": reciver,
+    };  
+    let mut opts = FindOptions::new();
+    opts.sort = Some(doc! { "blockNumber": -1 }); 
+    opts.limit = Some(10); 
+
+    let mut cursor = coll.find(Some(doc.clone()), Some(opts)).expect(
+        "Failed to execute find command.",
+    );
+
+    println!("{:?}",cursor);
+    let mut transactions:Vec<EthTransaction> = Vec::new();
+    for result in cursor {
+        if let Ok(item) = result {
+	    let mut transaction:EthTransaction = Default::default();
+            if let Some(&Bson::String(ref txid)) = item.get("txid") {
+            	transaction.txid = txid.to_string();
+            }   
+
+	    if let Some(&Bson::String(ref amount)) = item.get("amount") {
+	      //transaction.amount = (u128::from_str_radix(&value.to_string().get(2..).unwrap(), 16).unwrap() / 10u128.pow(18)) as f32;
+		transaction.amount  = formart_amount(amount);
+	      println!("transaction.amount ---{}",transaction.amount);
+            } 
+	    transactions.push(transaction);
+        }   
+    }  
+   // let balance = (u128::from_str_radix(&decoded.result.to_string().get(2..).unwrap(), 16).unwrap() / 10u128.pow(18)) as f32;
+	let balance = formart_amount(&decoded.result);
+    let mist_eth_status = MistTokenStatus {
+        balance: balance.to_string(),
+        recent_tx: transactions,
+    };
     json::encode(&mist_eth_status).unwrap()
 }
 
@@ -394,11 +625,19 @@ fn rpc_service(){
 
     io.add_method("say_hello", |_| Ok(Value::String("hellossss".into())));
 
-    io.add_method("get_account_status", |_params: Params| {
+    io.add_method("get_eth_txids", |_params: Params| {
         let address: Address = _params.parse().unwrap();
 	let lower_address = &address.address.to_lowercase();
 	println!("111122223333--{}",lower_address);
-        let result = get_address_info(&lower_address);
+        let result = get_eth_txids(&lower_address);
+        Ok(Value::String(result.into()))
+    });
+
+    io.add_method("get_usdt_txids", |_params: Params| {
+        let address: Address = _params.parse().unwrap();
+	let lower_address = &address.address.to_lowercase();
+	println!("111122223333--{}",lower_address);
+        let result = get_usdt_txids(&lower_address);
         Ok(Value::String(result.into()))
     });
 
@@ -468,8 +707,8 @@ fn scan_block() {
 		let current_height = u64::from_str_radix(&decoded.result.get(2..).unwrap(), 16).unwrap();
 		println!("current height{}",current_height);
 
-
-		   if current_height - init_height > 12 {
+		//测试4个上生产12个
+		   if current_height - init_height > 4 {
 			    let str_height = format!("0x{:x}",init_height + 1);
 			    let data = format!("{{\"method\":\"eth_getBlockByNumber\",\"params\":[\"{}\", true],\"id\":1,\"jsonrpc\":\"2.0\"}}",str_height);
 			    println!("data={},----{}",data,current_height);
@@ -485,6 +724,7 @@ fn scan_block() {
 			    decoded.insert();
 			    if decoded.result.transactions.len() != 0{
 			   	 decoded.insert_txs();
+				decoded.filter_usdt();
 			    }
 			/*
 			    for tx in decoded.result.transactions {
@@ -513,7 +753,7 @@ fn main() {
    }
    Ok(ForkResult::Child) => {
 	println!("I'm a new child process");
-       scan_block();
+      scan_block();
    }
    Err(_) => println!("Fork failed"),
    }
